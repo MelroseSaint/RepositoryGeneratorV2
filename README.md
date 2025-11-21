@@ -46,6 +46,13 @@ RepoGen V2 is an intelligent tool that transforms your code snippets into fully 
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Verifying AI Connection
+
+To verify your API key is working correctly, run:
+```bash
+node scripts/test-ai-connection.js
+```
+
 ## Usage
 
 1. **Upload**: Drag & drop your files or paste your code.

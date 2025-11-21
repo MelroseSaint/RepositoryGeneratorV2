@@ -1,0 +1,5 @@
+{
+  "name": "RepoGen",
+  "description": "Universal GitHub Repo Generator - Transforms raw code into production-ready repositories.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,97 @@
+import React, { useState } from 'react';
+import { AppStep, DetectionResult, INITIAL_CONFIG, RepoConfig } from './types';
+import { StepUpload } from './components/Steps/1-Upload';
+import { StepDetection } from './components/Steps/2-Detection';
+import { StepConfig } from './components/Steps/3-Config';
+import { StepPreview } from './components/Steps/4-Preview';
+import { StepGenerate } from './components/Steps/5-Generate';
+import { Box, Terminal } from 'lucide-react';
+
+const App: React.FC = () => {
+  const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
+  const [rawInput, setRawInput] = useState<string>('');
+  const [config, setConfig] = useState<RepoConfig>(INITIAL_CONFIG);
+
+  // Step Handlers
+  const handleUploadNext = (input: string) => {
+    setRawInput(input);
+    setStep(AppStep.DETECTION);
+  };
+
+  const handleDetectionNext = (result: DetectionResult) => {
+    // Merge detection result into config default overrides
+    setConfig(prev => ({
+        ...prev,
+        language: result.language,
+        framework: result.framework,
+        projectType: result.suggestedProjectType,
+        useTypeScript: result.language === 'TypeScript'
+    }));
+    setStep(AppStep.CONFIG);
+  };
+
+  const handleConfigNext = () => setStep(AppStep.PREVIEW);
+  const handlePreviewNext = () => setStep(AppStep.GENERATE);
+  const handleReset = () => {
+    setStep(AppStep.UPLOAD);
+    setRawInput('');
+    setConfig(INITIAL_CONFIG);
+  };
+
+  // Back Handlers
+  const goBack = () => setStep(Math.max(0, step - 1));
+
+  return (
+    <div className="min-h-screen flex flex-col bg-dark-bg text-white font-sans selection:bg-brand-500 selection:text-white">
+      {/* Header */}
+      <header className="border-b border-dark-border bg-dark-bg/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="bg-brand-600 p-2 rounded-lg shadow-lg shadow-brand-900/50">
+                <Box className="w-5 h-5 text-white" />
+            </div>
+            <div>
+                <h1 className="text-xl font-bold tracking-tight flex items-center">
+                    RepoGen
+                    <span className="ml-2 text-[10px] bg-brand-900/50 text-brand-300 border border-brand-700/50 px-2 py-0.5 rounded-full font-mono">V2 BETA</span>
+                </h1>
+            </div>
+          </div>
+          
+          <nav className="hidden md:flex items-center space-x-1">
+             {[AppStep.UPLOAD, AppStep.DETECTION, AppStep.CONFIG, AppStep.PREVIEW, AppStep.GENERATE].map((s) => (
+                 <div key={s} className="flex items-center">
+                     <div className={`w-2 h-2 rounded-full ${step >= s ? 'bg-brand-500' : 'bg-dark-border'} transition-colors`} />
+                     {s !== AppStep.GENERATE && <div className={`w-8 h-0.5 mx-1 ${step > s ? 'bg-brand-800' : 'bg-dark-border'} transition-colors`} />}
+                 </div>
+             ))}
+          </nav>
+
+          <a href="https://github.com" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors">
+            <Terminal className="w-5 h-5" />
+          </a>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
+        <div className="flex-1 relative">
+            {step === AppStep.UPLOAD && <StepUpload onNext={handleUploadNext} />}
+            {step === AppStep.DETECTION && <StepDetection rawInput={rawInput} onNext={handleDetectionNext} onBack={goBack} />}
+            {step === AppStep.CONFIG && <StepConfig config={config} setConfig={setConfig} onNext={handleConfigNext} onBack={goBack} />}
+            {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} />}
+            {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} />}
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-dark-border py-6 mt-auto bg-dark-bg">
+        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-600">
+            <p>&copy; 2024 RepoGen Inc. Generated code is processed locally in demo mode.</p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;

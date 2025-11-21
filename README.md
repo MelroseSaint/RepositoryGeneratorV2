@@ -2,19 +2,58 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# RepoGen V2 - AI Codebase Structurer
 
-This contains everything you need to run your app locally.
+RepoGen V2 is an intelligent tool that transforms your code snippets into fully structured, production-ready repositories. It detects your stack, applies best practices, and generates all the necessary configuration files for you.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1eKh_XO4ct8gWM5ICN1gh3vKzpOvevJ2X
+## Features
 
-## Run Locally
+- **🚀 Instant Project Scaffolding**: Turn messy snippets into a clean project structure in seconds.
+- **🧠 AI-Powered Stack Detection**: Automatically identifies languages, frameworks, and dependencies.
+- **🛠️ Comprehensive Configuration**:
+  - **Build**: Vite, Webpack, TypeScript, Monorepo support.
+  - **Quality**: ESLint, Prettier, Jest/Vitest.
+  - **DevOps**: Docker, Docker Compose.
+- **🐙 Advanced GitHub Integration**:
+  - **Workflows**: CI/CD, Release automation, Dependabot, CodeQL Security, Stale issue management.
+  - **Templates**: Custom Issue forms (Bug/Feature), Pull Request templates.
+  - **Community**: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, SUPPORT.md.
+  - **Governance**: CODEOWNERS file generation.
+- **📦 Export Options**: Download as .ZIP or push directly to GitHub (coming soon).
 
-**Prerequisites:**  Node.js
+## Getting Started
 
+### Prerequisites
+- Node.js 18+
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/MelroseSaint/RepositoryGeneratorV2.git
+   cd RepositoryGeneratorV2
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Usage
+
+1. **Upload**: Drag & drop your files or paste your code.
+2. **Detect**: Let the AI analyze your stack.
+3. **Configure**: Fine-tune your settings, including the new **GitHub** tab for advanced repository management.
+4. **Preview**: Explore the generated file tree and code.
+5. **Generate**: Download your production-ready repository.
+
+## License
+
+MIT

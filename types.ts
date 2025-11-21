@@ -45,6 +45,10 @@ export interface RepoConfig {
   includeTests: boolean;
   includeDocker: boolean;
   includeLinting: boolean;
+  githubWorkflows: string[];
+  githubTemplates: string[];
+  githubCommunity: string[];
+  githubCodeowners: boolean;
 }
 
 export const INITIAL_CONFIG: RepoConfig = {
@@ -63,6 +67,10 @@ export const INITIAL_CONFIG: RepoConfig = {
   includeTests: true,
   includeDocker: false,
   includeLinting: true,
+  githubWorkflows: ['ci'],
+  githubTemplates: ['bug_report', 'feature_request', 'pull_request'],
+  githubCommunity: ['contributing', 'code_of_conduct'],
+  githubCodeowners: true,
 };
 
 export interface GenerationLog {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, AlertTriangle, Edit2, Loader2, ArrowRight } from 'lucide-react';
 import { DetectionResult } from '../../types';
-import { detectStack } from '../../services/mockAiWorker';
+import { detectStack } from '../../services/aiService';
 
 interface StepDetectionProps {
   rawInput: string;
@@ -94,7 +94,7 @@ export const StepDetection: React.FC<StepDetectionProps> = ({ rawInput, onNext, 
       </div>
 
       <div className="mt-8 flex justify-between items-center">
-        <button 
+        <button
           onClick={onBack}
           className="text-gray-400 hover:text-white font-medium px-4 py-2"
         >

@@ -8,15 +8,28 @@ interface StepGenerateProps {
   config: RepoConfig;
   rawInput: string;
   onReset: () => void;
+  existingFiles?: FileNode[];
 }
 
-export const StepGenerate: React.FC<StepGenerateProps> = ({ config, rawInput, onReset }) => {
+export const StepGenerate: React.FC<StepGenerateProps> = ({ config, rawInput, onReset, existingFiles }) => {
   const [logs, setLogs] = useState<GenerationLog[]>([]);
   const [progress, setProgress] = useState(0);
   const [complete, setComplete] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
 
   useEffect(() => {
+    // If we already have files, we don't need to fake the generation process
+    if (existingFiles && existingFiles.length > 0) {
+      setLogs([{
+        timestamp: new Date().toISOString().split('T')[1].split('.')[0],
+        level: 'success',
+        message: "Files prepared from preview."
+      }]);
+      setProgress(100);
+      setComplete(true);
+      return;
+    }
+
     const steps = [
       "Initializing workspace...",
       "Parsing input files...",
@@ -47,7 +60,7 @@ export const StepGenerate: React.FC<StepGenerateProps> = ({ config, rawInput, on
     }, 600);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [existingFiles]);
 
   const addFilesToZip = (zip: JSZip, nodes: FileNode[]) => {
     nodes.forEach(node => {
@@ -69,7 +82,11 @@ export const StepGenerate: React.FC<StepGenerateProps> = ({ config, rawInput, on
       const zip = new JSZip();
 
       // Regenerate the file tree to ensure we have the latest state
-      const files = await generateFileTree(config, rawInput);
+      // OR use existing files if passed from preview
+      let files = existingFiles;
+      if (!files || files.length === 0) {
+        files = await generateFileTree(config, rawInput);
+      }
 
       // Add files to the zip structure
       addFilesToZip(zip, files);

@@ -46,6 +46,18 @@ RepoGen V2 is an intelligent tool that transforms your code snippets into fully 
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### AI Configuration
+
+To enable real-time AI generation:
+1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Click the "Set API Key" button in the top right corner of the application.
+3. Enter your key.
+
+Alternatively, create a `.env.local` file:
+```bash
+GEMINI_API_KEY=your_api_key_here
+```
+
 ### Verifying AI Connection
 
 To verify your API key is working correctly, run:

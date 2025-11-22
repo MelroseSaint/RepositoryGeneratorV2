@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { AppStep, DetectionResult, INITIAL_CONFIG, RepoConfig } from './types';
+import { AppStep, DetectionResult, FileNode, INITIAL_CONFIG, RepoConfig } from './types';
 import { StepUpload } from './components/Steps/1-Upload';
 import { StepDetection } from './components/Steps/2-Detection';
 import { StepConfig } from './components/Steps/3-Config';
 import { StepPreview } from './components/Steps/4-Preview';
 import { StepGenerate } from './components/Steps/5-Generate';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import { Box, Terminal } from 'lucide-react';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
   const [rawInput, setRawInput] = useState<string>('');
   const [config, setConfig] = useState<RepoConfig>(INITIAL_CONFIG);
+  const [generatedFiles, setGeneratedFiles] = useState<FileNode[]>([]);
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   // Step Handlers
   const handleUploadNext = (input: string) => {
@@ -36,6 +39,7 @@ const App: React.FC = () => {
     setStep(AppStep.UPLOAD);
     setRawInput('');
     setConfig(INITIAL_CONFIG);
+    setGeneratedFiles([]);
   };
 
   // Back Handlers
@@ -67,9 +71,12 @@ const App: React.FC = () => {
             ))}
           </nav>
 
-          <a href="https://github.com" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors">
-            <Terminal className="w-5 h-5" />
-          </a>
+          <div className="flex items-center space-x-4">
+            <ApiKeyInput onKeyChange={setHasApiKey} />
+            <a href="https://github.com" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors">
+              <Terminal className="w-5 h-5" />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -79,15 +86,15 @@ const App: React.FC = () => {
           {step === AppStep.UPLOAD && <StepUpload onNext={handleUploadNext} />}
           {step === AppStep.DETECTION && <StepDetection rawInput={rawInput} onNext={handleDetectionNext} onBack={goBack} />}
           {step === AppStep.CONFIG && <StepConfig config={config} setConfig={setConfig} onNext={handleConfigNext} onBack={goBack} />}
-          {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} />}
-          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} />}
+          {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} onFilesGenerated={setGeneratedFiles} />}
+          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} existingFiles={generatedFiles} />}
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-dark-border py-6 mt-auto bg-dark-bg">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-600">
-          <p>&copy; 2024 RepoGen Inc. {process.env.GEMINI_API_KEY ? 'Powered by Google Gemini AI.' : 'Generated code is processed locally in demo mode.'}</p>
+          <p>&copy; {new Date().getFullYear()} RepoGen Inc. {hasApiKey ? 'Powered by Google Gemini AI.' : 'Generated code is processed locally in demo mode.'}</p>
         </div>
       </footer>
     </div>

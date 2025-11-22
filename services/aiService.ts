@@ -4,9 +4,56 @@ import { DetectionResult, FileNode, FileType, RepoConfig } from '../types';
 // Initialize Gemini
 // Note: In a real prod app, you'd proxy this through a backend to hide the key.
 // For this local tool/demo, using the env var directly is acceptable.
-const API_KEY = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+let runtimeApiKey = '';
+
+// Try to load from localStorage on client side
+if (typeof window !== 'undefined') {
+    runtimeApiKey = localStorage.getItem('gemini_api_key') || '';
+}
+
+export const setApiKey = (key: string) => {
+    runtimeApiKey = key;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('gemini_api_key', key);
+    }
+};
+
+export const getApiKey = () => {
+    // Prioritize runtime key (user input)
+    if (runtimeApiKey) return runtimeApiKey;
+
+    // Check environment variables safely
+    // Vite 'define' replaces process.env.GEMINI_API_KEY string literal
+    // We also check import.meta.env for standard Vite usage
+    try {
+        if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+            return process.env.GEMINI_API_KEY;
+        }
+    } catch (e) {
+        // Ignore process access errors
+    }
+
+    try {
+        // @ts-ignore - Vite specific
+        if (import.meta.env?.VITE_GEMINI_API_KEY) {
+            // @ts-ignore
+            return import.meta.env.VITE_GEMINI_API_KEY;
+        }
+    } catch (e) {
+        // Ignore import.meta access errors
+    }
+
+    return '';
+};
+
+const getModel = () => {
+    const key = getApiKey();
+    if (!key) return null;
+    const genAI = new GoogleGenerativeAI(key);
+    // Using gemini-flash-latest for stability and access to latest features
+    return genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+};
 
 const MOCK_DELAY = 1500;
 
@@ -14,7 +61,9 @@ const MOCK_DELAY = 1500;
  * Detects the tech stack using Gemini if available, otherwise falls back to heuristics.
  */
 export const detectStack = async (input: string): Promise<DetectionResult> => {
-    if (!API_KEY) {
+    const model = getModel();
+
+    if (!model) {
         console.warn("No API Key found, using mock detection.");
         await new Promise(resolve => setTimeout(resolve, MOCK_DELAY));
         return mockDetect(input);
@@ -54,8 +103,12 @@ export const detectStack = async (input: string): Promise<DetectionResult> => {
  * Generates the file tree using Gemini to create intelligent content.
  */
 export const generateFileTree = async (config: RepoConfig, rawInput: string): Promise<FileNode[]> => {
+    const model = getModel();
+    console.log('[AI Service] generateFileTree called. Model available:', !!model);
+
     // If no key, use the deterministic mock generator
-    if (!API_KEY) {
+    if (!model) {
+        console.warn("[AI Service] No model/key found. Falling back to mock.");
         return mockGenerate(config, rawInput);
     }
 
@@ -141,7 +194,7 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
         return root;
 
     } catch (error) {
-        console.error("AI Generation failed:", error);
+        console.error("[AI Service] AI Generation failed. Falling back to mock. Error:", error);
         return mockGenerate(config, rawInput);
     }
 };

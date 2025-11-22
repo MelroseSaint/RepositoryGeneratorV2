@@ -1,5 +1,17 @@
 import 'dotenv/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Load .env.local if it exists
+const envLocalPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envLocalPath)) {
+    const envConfig = dotenv.parse(fs.readFileSync(envLocalPath));
+    for (const k in envConfig) {
+        process.env[k] = envConfig[k];
+    }
+}
 
 async function testConnection() {
     console.log('🧪 Testing Gemini AI Connection...');
@@ -16,9 +28,10 @@ async function testConnection() {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Using gemini-flash-latest as verified
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-        console.log('📡 Sending test prompt to Gemini...');
+        console.log('📡 Sending test prompt to Gemini (model: gemini-flash-latest)...');
         const result = await model.generateContent('Hello! Are you working? Reply with "Yes, I am working!"');
         const response = result.response;
         const text = response.text();

@@ -121,29 +121,51 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
         // We will construct the rest of the standard boilerplate (tsconfig, etc) manually to ensure validity,
         // but inject the AI content where it matters.
 
-        const prompt = `
-      You are a senior software architect. Generate configuration files for a ${config.projectType} project 
-      using ${config.framework} and ${config.language}.
-      
-      Project Name: ${config.name}
-      Description: ${config.description}
-      Features: ${JSON.stringify(config)}
-      
-      Return a JSON object where keys are filenames and values are the file content.
-      Include:
-      1. package.json (complete with scripts and dependencies)
-      2. README.md (comprehensive)
-      3. .gitignore
-      4. A main entry point file (e.g. index.tsx or main.py) that incorporates the user's raw input logic if possible.
-      
-      User's Raw Input Context:
-      ${rawInput.slice(0, 1000)}
-    `;
+        console.log('[AI Service] Starting AI generation...');
+        console.log('[AI Service] Config:', {
+            projectType: config.projectType,
+            framework: config.framework,
+            language: config.language,
+            name: config.name
+        });
 
-        const result = await model.generateContent(prompt);
+        // Simplified prompt to reduce complexity and avoid timeouts
+        const prompt = `Generate a JSON object with configuration files for a ${config.projectType} project using ${config.framework} and ${config.language}.
+
+Project Name: ${config.name}
+Description: ${config.description}
+
+Return ONLY a JSON object (no markdown, no explanation) with these files:
+{
+  "package.json": "...",
+  "README.md": "...",
+  ".gitignore": "..."
+}
+
+Keep it simple and concise.`;
+
+        console.log('[AI Service] Sending prompt to Gemini...');
+        console.log('[AI Service] Prompt length:', prompt.length);
+
+        // Add timeout to prevent indefinite hanging
+        const timeoutMs = 30000; // 30 seconds
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('AI generation timeout after 30s')), timeoutMs)
+        );
+
+        const result = await Promise.race([
+            model.generateContent(prompt),
+            timeoutPromise
+        ]) as any;
+
+        console.log('[AI Service] Received response from Gemini');
+
         const text = result.response.text();
+        console.log('[AI Service] Response length:', text.length);
+
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const generatedFiles = JSON.parse(jsonStr);
+        console.log('[AI Service] Successfully parsed JSON. Files:', Object.keys(generatedFiles));
 
         const root: FileNode[] = [];
 

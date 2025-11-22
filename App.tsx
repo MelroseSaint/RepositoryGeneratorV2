@@ -50,8 +50,12 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="border-b border-dark-border bg-dark-bg/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-brand-600 p-2 rounded-lg shadow-lg shadow-brand-900/50">
+          <button
+            onClick={handleReset}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer group"
+            title="Return to home"
+          >
+            <div className="bg-brand-600 p-2 rounded-lg shadow-lg shadow-brand-900/50 group-hover:shadow-brand-900/70 transition-shadow">
               <Box className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -60,7 +64,7 @@ const App: React.FC = () => {
                 <span className="ml-2 text-[10px] bg-brand-900/50 text-brand-300 border border-brand-700/50 px-2 py-0.5 rounded-full font-mono">V2 BETA</span>
               </h1>
             </div>
-          </div>
+          </button>
 
           <nav className="hidden md:flex items-center space-x-1">
             {[AppStep.UPLOAD, AppStep.DETECTION, AppStep.CONFIG, AppStep.PREVIEW, AppStep.GENERATE].map((s) => (

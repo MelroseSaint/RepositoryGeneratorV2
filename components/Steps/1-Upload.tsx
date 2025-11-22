@@ -16,13 +16,13 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
     // In a real app, we'd parse the files here.
     // For this demo, we simulate a dropped file by setting text.
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-       setTextInput("// Simulated content from dropped file...\nconst app = 'loaded';");
+      setTextInput("// Simulated content from dropped file...\nconst app = 'loaded';");
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-        setTextInput("// Simulated content from uploaded file...\nimport React from 'react';");
+      setTextInput("// Simulated content from uploaded file...\nimport React from 'react';");
     }
   };
 
@@ -33,9 +33,62 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
         <p className="text-gray-400">Paste your snippets or upload a zip to get started.</p>
       </div>
 
+      {/* Demo Video Section */}
+      <div className="mb-8">
+        <div className="bg-dark-surface border border-dark-border rounded-xl overflow-hidden shadow-xl">
+          <div className="px-4 py-3 border-b border-dark-border bg-dark-bg/50 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-300">See it in Action</span>
+            </div>
+            <span className="text-xs text-gray-500">Demo Video</span>
+          </div>
+          <div className="relative aspect-video bg-black rounded-b-xl" style={{ overflow: 'hidden' }}>
+            <style dangerouslySetInnerHTML={{
+              __html: `
+              .video-wrapper-yt {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+              }
+              .video-wrapper-yt iframe {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                border: none;
+                transform: scale(1.02);
+              }
+              .video-wrapper-yt::before {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 65px;
+                background: rgba(0, 0, 0, 0.95);
+                pointer-events: none;
+                z-index: 10;
+              }
+            `}} />
+            <div className="video-wrapper-yt">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/xxWSOIHA4ls?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&color=white&controls=1"
+                title="RepoGen V2 Demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">
         {/* Left: Drag & Drop */}
-        <div 
+        <div
           className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 transition-all cursor-pointer
             ${isDragging ? 'border-brand-500 bg-brand-900/20' : 'border-dark-border bg-dark-surface hover:border-brand-500/50'}`}
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -43,10 +96,10 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
         >
-          <input 
-            type="file" 
-            className="hidden" 
-            ref={fileInputRef} 
+          <input
+            type="file"
+            className="hidden"
+            ref={fileInputRef}
             onChange={handleFileChange}
           />
           <div className="w-16 h-16 bg-dark-bg rounded-full flex items-center justify-center mb-4">
@@ -66,7 +119,7 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
               <Code2 className="w-4 h-4" />
               <span className="text-sm font-medium">Paste Code</span>
             </div>
-            <button 
+            <button
               onClick={() => setTextInput('')}
               className="text-xs text-gray-500 hover:text-red-400"
             >

@@ -28,10 +28,67 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
     }
   };
 
+  const validateCode = (content: string): boolean => {
+    // Check if content is too short
+    if (content.trim().length < 10) {
+      setError("Content is too short. Please paste actual code.");
+      return false;
+    }
+
+    // Code indicators - look for common programming patterns
+    const codeIndicators = [
+      /function\s+\w+/i,           // function declarations
+      /const\s+\w+\s*=/i,          // const declarations
+      /let\s+\w+\s*=/i,            // let declarations
+      /var\s+\w+\s*=/i,            // var declarations
+      /class\s+\w+/i,              // class declarations
+      /import\s+.*from/i,          // import statements
+      /require\(['"]/i,            // require statements
+      /export\s+(default|const|function|class)/i, // export statements
+      /<\w+[^>]*>/,                // HTML/JSX tags
+      /\{[\s\S]*\}/,               // code blocks
+      /\w+\s*\([^)]*\)\s*\{/,      // function calls with blocks
+      /if\s*\(/i,                  // if statements
+      /for\s*\(/i,                 // for loops
+      /while\s*\(/i,               // while loops
+      /\/\/.+/,                    // single-line comments
+      /\/\*[\s\S]*?\*\//,          // multi-line comments
+      /package\.json/i,            // package.json reference
+      /\.tsx?|\.jsx?|\.py|\.java|\.go|\.rs/i, // file extensions
+    ];
+
+    // Check if content matches any code indicators
+    const hasCodeIndicators = codeIndicators.some(pattern => pattern.test(content));
+
+    // Check for non-code patterns (common in spam/random text)
+    const nonCodePatterns = [
+      /^[^{}\[\]();]+$/,           // No code-like punctuation at all
+      /^[\d\s]+$/,                 // Only numbers and spaces
+      /^[a-zA-Z\s]+$/,             // Only letters and spaces (likely prose)
+    ];
+
+    const isLikelyNotCode = nonCodePatterns.some(pattern =>
+      pattern.test(content) && content.length > 100
+    );
+
+    if (isLikelyNotCode && !hasCodeIndicators) {
+      setError("This doesn't appear to be code. Please paste actual source code, configuration files, or a GitHub URL.");
+      return false;
+    }
+
+    if (!hasCodeIndicators) {
+      setError("Unable to detect code patterns. Please paste valid source code or configuration files.");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleNext = async () => {
+    setError(null); // Clear previous errors
+
     if (importMode === 'github' && textInput.includes('github.com')) {
       setIsLoading(true);
-      setError(null);
       try {
         // Extract URL from the comment if present, or use raw input
         const urlMatch = textInput.match(/https:\/\/github\.com\/[\w-]+\/[\w-]+/);
@@ -46,6 +103,10 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
         setIsLoading(false);
       }
     } else {
+      // Validate code before proceeding
+      if (!validateCode(textInput)) {
+        return; // Error is already set by validateCode
+      }
       onNext(textInput);
     }
   };

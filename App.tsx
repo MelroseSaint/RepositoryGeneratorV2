@@ -68,7 +68,7 @@ const App: React.FC = () => {
 
           {/* Demo GIF - Platform Wide */}
           <div className="flex-1 flex justify-center mx-8">
-            <img src="/demo.gif" alt="" className="h-12 w-auto rounded-lg shadow-md" />
+            <img key={Date.now()} src="/demo.gif" alt="Demo" className="h-12 w-auto rounded-lg shadow-md" />
           </div>
 
           <nav className="hidden md:flex items-center space-x-1">

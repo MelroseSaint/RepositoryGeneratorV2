@@ -1,37 +1,52 @@
-import React, { useState } from 'react';
-import { FileNode, FileType } from '../../types';
-import { FileCode2, Folder, ChevronRight, ChevronDown, Edit3, Wand2, FileType2, Loader2, Check } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { FileNode, RepoConfig, FileType } from '../../types';
+import { generateFileTree } from '../../services/aiService';
+import { FileCode2, Folder, ChevronRight, ChevronDown, Wand2, FileType2, Loader2 } from 'lucide-react';
 import { refactorCode } from '../../services/aiService';
 
 interface StepPreviewProps {
-  files: FileNode[];
-  onNext: (files: FileNode[]) => void;
+  config: RepoConfig;
+  rawInput: string;
+  onNext: () => void;
   onBack: () => void;
+  onFilesGenerated: (files: FileNode[]) => void;
 }
 
-export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack }) => {
+export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNext, onBack, onFilesGenerated }) => {
+  const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
+  const [loading, setLoading] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'components']));
   const [isRefactoring, setIsRefactoring] = useState(false);
   const [refactorPrompt, setRefactorPrompt] = useState('');
   const [showRefactorInput, setShowRefactorInput] = useState(false);
 
-  // Helper to find first file
-  React.useEffect(() => {
-    if (!selectedFile && files.length > 0) {
-      const findFirstFile = (nodes: FileNode[]): FileNode | null => {
-        for (const node of nodes) {
-          if (node.type === FileType.FILE) return node;
-          if (node.children) {
-            const found = findFirstFile(node.children);
-            if (found) return found;
+  useEffect(() => {
+    let isMounted = true;
+    const loadTree = async () => {
+      setLoading(true);
+      const tree = await generateFileTree(config, rawInput);
+      if (isMounted) {
+        setFiles(tree);
+        onFilesGenerated(tree);
+        // Select first file by default
+        const findFirstFile = (nodes: FileNode[]): FileNode | null => {
+          for (const node of nodes) {
+            if (node.type === FileType.FILE) return node;
+            if (node.children) {
+              const found = findFirstFile(node.children);
+              if (found) return found;
+            }
           }
-        }
-        return null;
-      };
-      setSelectedFile(findFirstFile(files));
-    }
-  }, [files, selectedFile]);
+          return null;
+        };
+        setSelectedFile(findFirstFile(tree));
+        setLoading(false);
+      }
+    };
+    loadTree();
+    return () => { isMounted = false; };
+  }, [config, rawInput, onFilesGenerated]);
 
   const toggleFolder = (id: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -50,7 +65,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
     try {
       const newContent = await refactorCode(selectedFile.content, instruction, selectedFile.name);
 
-      // Update file content in place (simplified for demo)
+      // Update file content in place
       selectedFile.content = newContent;
 
       // If converting to TS, update extension
@@ -61,6 +76,8 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
 
       setShowRefactorInput(false);
       setRefactorPrompt('');
+      // Force re-render
+      setFiles([...files]);
     } catch (error) {
       console.error("Refactor failed:", error);
       alert("Refactoring failed. Please check console.");
@@ -73,8 +90,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
     return nodes.map((node) => (
       <div key={node.id} style={{ paddingLeft: `${depth * 12}px` }}>
         <div
-          className={`flex items-center py-1 px-2 cursor-pointer rounded hover:bg-dark-bg/50 transition-colors ${selectedFile?.id === node.id ? 'bg-brand-900/20 text-brand-300' : 'text-gray-400'
-            }`}
+          className={`flex items-center py-1 px-2 cursor-pointer rounded hover:bg-dark-bg/50 transition-colors ${selectedFile?.id === node.id ? 'bg-brand-900/20 text-brand-300' : 'text-gray-400'}`}
           onClick={() => {
             if (node.type === FileType.FOLDER) {
               toggleFolder(node.id);
@@ -119,8 +135,9 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
             Back
           </button>
           <button
-            onClick={() => onNext(files)}
-            className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-brand-900/20 transition-all transform hover:-translate-y-0.5"
+            onClick={onNext}
+            disabled={loading || files.length === 0}
+            className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-brand-900/20 transition-all transform hover:-translate-y-0.5"
           >
             Generate Repository
           </button>
@@ -131,7 +148,11 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
       <div className="flex-1 flex border border-dark-border rounded-xl overflow-hidden bg-dark-surface h-[500px]">
         {/* Sidebar */}
         <div className="w-64 border-r border-dark-border bg-dark-bg/30 overflow-y-auto p-2">
-          {renderTree(files)}
+          {loading ? (
+            <div className="text-gray-500 text-sm animate-pulse p-4">Generating files...</div>
+          ) : (
+            renderTree(files)
+          )}
         </div>
 
         {/* Editor Area */}
@@ -195,7 +216,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack 
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
-              Select a file to preview
+              {loading ? 'Generating files...' : 'Select a file to preview'}
             </div>
           )}
         </div>

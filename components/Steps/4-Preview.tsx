@@ -210,7 +210,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
 
               <div className="flex-1 overflow-auto p-4">
                 <pre className="font-mono text-sm text-gray-300 whitespace-pre-wrap">
-                  {selectedFile.content || '// Empty file'}
+                  {typeof selectedFile.content === 'string' ? selectedFile.content : selectedFile.content ? JSON.stringify(selectedFile.content, null, 2) : '// Empty file'}
                 </pre>
               </div>
             </>

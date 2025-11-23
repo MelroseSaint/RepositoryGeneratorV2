@@ -129,17 +129,36 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
             name: config.name
         });
 
+        // Build list of requested files based on config
+        const requestedFiles = [
+            "package.json",
+            "README.md",
+            ".gitignore"
+        ];
+
+        if (config.ideConfig?.includes('vscode')) requestedFiles.push(".vscode/settings.json");
+        if (config.ideConfig?.includes('editorconfig')) requestedFiles.push(".editorconfig");
+        if (config.ideConfig?.includes('idea')) requestedFiles.push(".idea/workspace.xml"); // Simplified
+        if (config.ideConfig?.includes('devcontainer')) requestedFiles.push(".devcontainer/devcontainer.json");
+
+        // Add feature-specific files hints
+        let featureContext = "";
+        if (config.features?.length) {
+            featureContext = `\nInclude configuration/scaffolding for these features: ${config.features.join(', ')}.`;
+            if (config.features.includes('auth')) requestedFiles.push("src/lib/auth.ts"); // Example
+            if (config.features.includes('db')) requestedFiles.push("prisma/schema.prisma"); // Example
+        }
+
         // Simplified prompt to reduce complexity and avoid timeouts
         const prompt = `Generate a JSON object with configuration files for a ${config.projectType} project using ${config.framework} and ${config.language}.
+${featureContext}
 
 Project Name: ${config.name}
 Description: ${config.description}
 
 Return ONLY a JSON object (no markdown, no explanation) with these files:
 {
-  "package.json": "...",
-  "README.md": "...",
-  ".gitignore": "..."
+  ${requestedFiles.map(f => `"${f}": "..."`).join(',\n  ')}
 }
 
 Keep it simple and concise.`;

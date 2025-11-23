@@ -6,7 +6,7 @@ import { StepConfig } from './components/Steps/3-Config';
 import { StepPreview } from './components/Steps/4-Preview';
 import { StepGenerate } from './components/Steps/5-Generate';
 import { ApiKeyInput } from './components/ApiKeyInput';
-import { Box, Terminal } from 'lucide-react';
+import { Box, Terminal, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
@@ -66,6 +66,11 @@ const App: React.FC = () => {
             </div>
           </button>
 
+          {/* Demo GIF - Platform Wide */}
+          <div className="flex-1 flex justify-center mx-8">
+            <img src="/demo.gif" alt="" className="h-12 w-auto rounded-lg shadow-md" />
+          </div>
+
           <nav className="hidden md:flex items-center space-x-1">
             {[AppStep.UPLOAD, AppStep.DETECTION, AppStep.CONFIG, AppStep.PREVIEW, AppStep.GENERATE].map((s) => (
               <div key={s} className="flex items-center">
@@ -83,6 +88,18 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* API Key Announcement Banner */}
+      {!hasApiKey && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-2 px-4 animate-in slide-in-from-top-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-center text-yellow-200 text-sm">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            <span>
+              <strong>Note:</strong> A Gemini API key is required for real-time code generation. Without it, the app runs in demo mode with simulated outputs.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Settings, Package, ShieldCheck, Cloud, Database, ArrowRight, Github, FileText, Heart, Users } from 'lucide-react';
-import { RepoConfig } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Settings, Package, ShieldCheck, Cloud, Database, ArrowRight, Github, FileText, Heart, Users, Code, Zap, Monitor } from 'lucide-react';
+import { RepoConfig, PROJECT_TYPES, FRAMEWORKS, IDE_CONFIGS, FEATURES } from '../../types';
 
 interface StepConfigProps {
   config: RepoConfig;
@@ -11,6 +11,9 @@ interface StepConfigProps {
 
 const TABS = [
   { id: 'basics', label: 'Basics', icon: Settings },
+  { id: 'stack', label: 'Stack', icon: Monitor },
+  { id: 'ide', label: 'IDE & Tools', icon: Code },
+  { id: 'features', label: 'Features', icon: Zap },
   { id: 'build', label: 'Build & Pkg', icon: Package },
   { id: 'lint', label: 'Lint & Test', icon: ShieldCheck },
   { id: 'ci', label: 'CI/CD', icon: Cloud },
@@ -19,21 +22,42 @@ const TABS = [
 
 export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNext, onBack }) => {
   const [activeTab, setActiveTab] = useState('basics');
+  const [availableFrameworks, setAvailableFrameworks] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (config.projectType && FRAMEWORKS[config.projectType]) {
+      setAvailableFrameworks(FRAMEWORKS[config.projectType]);
+      // Reset framework if it's not in the new list
+      if (!FRAMEWORKS[config.projectType].includes(config.framework)) {
+        handleChange('framework', FRAMEWORKS[config.projectType][0]);
+      }
+    } else {
+      setAvailableFrameworks([]);
+    }
+  }, [config.projectType]);
 
   const handleChange = (field: keyof RepoConfig, value: any) => {
     setConfig({ ...config, [field]: value });
   };
 
+  const toggleArrayItem = (field: keyof RepoConfig, item: string) => {
+    const current = (config[field] as string[]) || [];
+    const updated = current.includes(item)
+      ? current.filter(i => i !== item)
+      : [...current, item];
+    handleChange(field, updated);
+  };
+
   return (
-    <div className="flex flex-col h-full max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+    <div className="flex flex-col h-full max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Configure Repository</h2>
-        <p className="text-gray-400">Fine-tune your stack before generation.</p>
+        <p className="text-gray-400">Fine-tune your stack, tools, and features before generation.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0">
         {/* Sidebar Tabs */}
-        <div className="w-full md:w-64 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+        <div className="w-full md:w-64 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 no-scrollbar">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -55,7 +79,7 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 bg-dark-surface rounded-xl border border-dark-border p-8 overflow-y-auto">
+        <div className="flex-1 bg-dark-surface rounded-xl border border-dark-border p-8 overflow-y-auto custom-scrollbar">
 
           {activeTab === 'basics' && (
             <div className="space-y-6 animate-in fade-in">
@@ -87,6 +111,7 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
                     <option value="MIT">MIT</option>
                     <option value="Apache-2.0">Apache 2.0</option>
                     <option value="GPLv3">GPL v3</option>
+                    <option value="BSD-3-Clause">BSD 3-Clause</option>
                     <option value="None">None</option>
                   </select>
                 </div>
@@ -99,6 +124,86 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white outline-none"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'stack' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Project Type</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {PROJECT_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => handleChange('projectType', type)}
+                      className={`px-4 py-3 rounded-lg border text-left transition-all ${config.projectType === type
+                          ? 'border-brand-500 bg-brand-900/20 text-white'
+                          : 'border-dark-border bg-dark-bg text-gray-400 hover:border-gray-500'
+                        }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {availableFrameworks.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Framework / Technology</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {availableFrameworks.map((fw) => (
+                      <button
+                        key={fw}
+                        onClick={() => handleChange('framework', fw)}
+                        className={`px-3 py-2 rounded-lg border text-sm transition-all ${config.framework === fw
+                            ? 'border-brand-500 bg-brand-900/20 text-white'
+                            : 'border-dark-border bg-dark-bg text-gray-400 hover:border-gray-500'
+                          }`}
+                      >
+                        {fw}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'ide' && (
+            <div className="space-y-6 animate-in fade-in">
+              <p className="text-sm text-gray-400">Select configuration files to generate for your development environment.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {IDE_CONFIGS.map((ide) => (
+                  <label key={ide.id} className="flex items-center p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-gray-500 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={config.ideConfig?.includes(ide.id)}
+                      onChange={() => toggleArrayItem('ideConfig', ide.id)}
+                      className="accent-brand-500 w-5 h-5 mr-3"
+                    />
+                    <span className="text-white font-medium">{ide.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'features' && (
+            <div className="space-y-6 animate-in fade-in">
+              <p className="text-sm text-gray-400">Select pre-configured features and snippets to include in your codebase.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FEATURES.map((feat) => (
+                  <label key={feat.id} className="flex items-center p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-gray-500 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={config.features?.includes(feat.id)}
+                      onChange={() => toggleArrayItem('features', feat.id)}
+                      className="accent-brand-500 w-5 h-5 mr-3"
+                    />
+                    <span className="text-white font-medium">{feat.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
           )}
@@ -237,13 +342,8 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
                     <label key={wf.id} className="flex items-center p-3 rounded-lg border border-dark-border bg-dark-bg hover:border-gray-500 cursor-pointer transition-colors">
                       <input
                         type="checkbox"
-                        checked={config.githubWorkflows.includes(wf.id)}
-                        onChange={(e) => {
-                          const newWorkflows = e.target.checked
-                            ? [...config.githubWorkflows, wf.id]
-                            : config.githubWorkflows.filter(id => id !== wf.id);
-                          handleChange('githubWorkflows', newWorkflows);
-                        }}
+                        checked={config.githubWorkflows?.includes(wf.id)}
+                        onChange={() => toggleArrayItem('githubWorkflows', wf.id)}
                         className="accent-brand-500 w-4 h-4 mr-3"
                       />
                       <span className="text-sm text-gray-300">{wf.label}</span>
@@ -267,13 +367,8 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
                     <label key={tpl.id} className="flex items-center p-3 rounded-lg border border-dark-border bg-dark-bg hover:border-gray-500 cursor-pointer transition-colors">
                       <input
                         type="checkbox"
-                        checked={config.githubTemplates.includes(tpl.id)}
-                        onChange={(e) => {
-                          const newTemplates = e.target.checked
-                            ? [...config.githubTemplates, tpl.id]
-                            : config.githubTemplates.filter(id => id !== tpl.id);
-                          handleChange('githubTemplates', newTemplates);
-                        }}
+                        checked={config.githubTemplates?.includes(tpl.id)}
+                        onChange={() => toggleArrayItem('githubTemplates', tpl.id)}
                         className="accent-brand-500 w-4 h-4 mr-3"
                       />
                       <span className="text-sm text-gray-300">{tpl.label}</span>
@@ -298,13 +393,8 @@ export const StepConfig: React.FC<StepConfigProps> = ({ config, setConfig, onNex
                     <label key={com.id} className="flex items-center p-3 rounded-lg border border-dark-border bg-dark-bg hover:border-gray-500 cursor-pointer transition-colors">
                       <input
                         type="checkbox"
-                        checked={config.githubCommunity.includes(com.id)}
-                        onChange={(e) => {
-                          const newCommunity = e.target.checked
-                            ? [...config.githubCommunity, com.id]
-                            : config.githubCommunity.filter(id => id !== com.id);
-                          handleChange('githubCommunity', newCommunity);
-                        }}
+                        checked={config.githubCommunity?.includes(com.id)}
+                        onChange={() => toggleArrayItem('githubCommunity', com.id)}
                         className="accent-brand-500 w-4 h-4 mr-3"
                       />
                       <span className="text-sm text-gray-300">{com.label}</span>

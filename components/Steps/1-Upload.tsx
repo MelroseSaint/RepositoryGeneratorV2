@@ -163,7 +163,7 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
         <div className="relative group rounded-xl overflow-hidden shadow-2xl border border-dark-border bg-dark-surface">
           <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/80 to-transparent z-10 pointer-events-none" />
           <img
-            src="/demo.gif"
+            src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExYTBuNmZ5cmhpdzZ4MWxoM3ZldmMxczQ3dzhpdnVpaDc3M2U5YW5qaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OrbDKvEgYsscoV9XpD/giphy.gif"
             alt="App Demonstration"
             className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500"
           />

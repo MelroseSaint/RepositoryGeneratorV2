@@ -68,7 +68,7 @@ const App: React.FC = () => {
 
           {/* Demo GIF - Platform Wide */}
           <div className="flex-1 flex justify-center mx-8">
-            <img key={Date.now()} src="/demo.gif" alt="Demo" className="h-12 w-auto rounded-lg shadow-md" />
+            <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExYTBuNmZ5cmhpdzZ4MWxoM3ZldmMxczQ3dzhpdnVpaDc3M2U5YW5qaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OrbDKvEgYsscoV9XpD/giphy.gif" alt="RepoGen Demo" className="h-12 w-auto rounded-lg shadow-md" />
           </div>
 
           <nav className="hidden md:flex items-center space-x-1">

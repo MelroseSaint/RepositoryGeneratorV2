@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Code2, Github } from 'lucide-react';
+import { UploadCloud, FileText, Code2, Github, Loader2 } from 'lucide-react';
+import { fetchRepoContents } from '../../services/githubService';
 
 interface StepUploadProps {
   onNext: (input: string) => void;
@@ -9,6 +10,8 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
   const [textInput, setTextInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [importMode, setImportMode] = useState<'file' | 'github'>('file');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -22,6 +25,28 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       setTextInput(`// Simulated content from uploaded file...\nimport React from 'react';`);
+    }
+  };
+
+  const handleNext = async () => {
+    if (importMode === 'github' && textInput.includes('github.com')) {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Extract URL from the comment if present, or use raw input
+        const urlMatch = textInput.match(/https:\/\/github\.com\/[\w-]+\/[\w-]+/);
+        const url = urlMatch ? urlMatch[0] : textInput;
+
+        const content = await fetchRepoContents(url);
+        onNext(content);
+      } catch (err) {
+        setError("Failed to fetch GitHub repository. Please check the URL and try again.");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      onNext(textInput);
     }
   };
 
@@ -40,13 +65,13 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
           {/* Tabs */}
           <div className="flex border-b border-dark-border">
             <button
-              onClick={() => setImportMode('file')}
+              onClick={() => { setImportMode('file'); setError(null); }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${importMode === 'file' ? 'bg-dark-bg text-brand-400 border-b-2 border-brand-500' : 'text-gray-400 hover:text-white'}`}
             >
               Upload Files
             </button>
             <button
-              onClick={() => setImportMode('github')}
+              onClick={() => { setImportMode('github'); setError(null); }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${importMode === 'github' ? 'bg-dark-bg text-brand-400 border-b-2 border-brand-500' : 'text-gray-400 hover:text-white'}`}
             >
               GitHub Repo
@@ -54,7 +79,13 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
           </div>
 
           {/* Content */}
-          <div className="flex-1 p-6 flex flex-col items-center justify-center">
+          <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
+            {error && (
+              <div className="absolute top-4 left-4 right-4 bg-red-500/10 border border-red-500/50 text-red-400 text-xs p-2 rounded text-center z-10">
+                {error}
+              </div>
+            )}
+
             {importMode === 'file' ? (
               <div
                 className={`w-full h-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 transition-all cursor-pointer ${isDragging ? 'border-brand-500 bg-brand-900/20' : 'border-dark-border bg-dark-bg/50 hover:border-brand-500/50'}`}
@@ -81,9 +112,7 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
                   placeholder="https://github.com/username/repo"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none mb-2 placeholder-gray-600"
                   onChange={(e) => {
-                    if (e.target.value.includes('github.com')) {
-                      setTextInput(`// Imported from ${e.target.value}\n// Fetching repo content...`);
-                    }
+                    setTextInput(e.target.value);
                   }}
                 />
                 <p className="text-xs text-gray-500 text-center">Enter a valid GitHub URL to analyze</p>
@@ -106,8 +135,9 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
           <textarea
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
-            placeholder="// Paste your messy code here..."
+            placeholder={importMode === 'github' ? "Enter GitHub URL on the left..." : "// Paste your messy code here..."}
             className="flex-1 bg-transparent p-4 font-mono text-sm text-gray-300 focus:outline-none resize-none placeholder-gray-600"
+            readOnly={importMode === 'github'}
           />
         </div>
       </div>
@@ -115,12 +145,16 @@ export const StepUpload: React.FC<StepUploadProps> = ({ onNext }) => {
       {/* Action Button */}
       <div className="mt-8 flex justify-end">
         <button
-          disabled={!textInput.trim()}
-          onClick={() => onNext(textInput)}
+          disabled={!textInput.trim() || isLoading}
+          onClick={handleNext}
           className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-brand-900/20 flex items-center transition-all transform hover:-translate-y-0.5"
         >
-          <FileText className="w-5 h-5 mr-2" />
-          Analyze &amp; Detect
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+          ) : (
+            <FileText className="w-5 h-5 mr-2" />
+          )}
+          {isLoading ? 'Fetching Repo...' : 'Analyze & Detect'}
         </button>
       </div>
 

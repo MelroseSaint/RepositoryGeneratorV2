@@ -171,73 +171,24 @@ Keep it simple and concise.`;
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('AI generation timeout after 30s')), timeoutMs)
         );
-
-        const result = await Promise.race([
-            model.generateContent(prompt),
-            timeoutPromise
-        ]) as any;
-
-        console.log('[AI Service] Received response from Gemini');
-
-        const text = result.response.text();
-        console.log('[AI Service] Response length:', text.length);
-
-        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const generatedFiles = JSON.parse(jsonStr);
-        console.log('[AI Service] Successfully parsed JSON. Files:', Object.keys(generatedFiles));
-
-        const root: FileNode[] = [];
-
-        // Helper to add file
-        const addFile = (name: string, content: string) => {
+        if (entryFileIndex !== -1) {
+            const entryFile = root[entryFileIndex];
+            root.splice(entryFileIndex, 1);
             root.push({
-                id: name.replace(/\./g, '-'),
-                name,
-                type: FileType.FILE,
-                language: name.split('.').pop(),
-                isNew: true,
-                content
+                id: 'src',
+                name: 'src',
+                type: FileType.FOLDER,
+                children: [entryFile]
             });
-        };
-
-        // Add AI generated files
-        Object.entries(generatedFiles).forEach(([name, content]) => {
-            addFile(name, content as string);
-        });
-
-        // Add GitHub Files (Deterministic logic is usually better for these standard files, 
-        // but we can mix and match. Let's stick to the robust deterministic logic for the .github folder 
-        // from the previous step to ensure we don't lose that customization).
-        const githubNodes = generateGithubNodes(config);
-        if (githubNodes) root.push(githubNodes);
-
-        // Add Docker if requested and not returned by AI (AI might have missed it)
-        if (config.includeDocker && !root.find(f => f.name === 'Dockerfile')) {
-            addFile('Dockerfile', `FROM node:18-alpine\nWORKDIR /app\nCOPY . .\nRUN npm install\nCMD ["npm", "start"]`);
         }
-
-        // Ensure src folder structure if it's a frontend app and not present
-        if (config.projectType === 'Frontend' && !root.find(f => f.name === 'src')) {
-            // Move entry file to src if it exists at root
-            const entryFileIndex = root.findIndex(f => f.name.match(/index\.(ts|js|tsx|jsx)/));
-            if (entryFileIndex !== -1) {
-                const entryFile = root[entryFileIndex];
-                root.splice(entryFileIndex, 1);
-                root.push({
-                    id: 'src',
-                    name: 'src',
-                    type: FileType.FOLDER,
-                    children: [entryFile]
-                });
-            }
-        }
+    }
 
         return root;
 
-    } catch (error) {
-        console.error("[AI Service] AI Generation failed. Falling back to mock. Error:", error);
-        return mockGenerate(config, rawInput);
-    }
+} catch (error) {
+    console.error("[AI Service] AI Generation failed. Falling back to mock. Error:", error);
+    return mockGenerate(config, rawInput);
+}
 };
 
 // --- Fallbacks / Mocks ---

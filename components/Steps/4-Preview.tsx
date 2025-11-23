@@ -1,99 +1,204 @@
-import React, { useEffect, useState } from 'react';
-import { FileNode, RepoConfig } from '../../types';
-import { generateFileTree } from '../../services/aiService';
-import { FileTree } from '../FileTree';
-import { ArrowRight, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileNode, FileType } from '../../types';
+import { FileCode2, Folder, ChevronRight, ChevronDown, Edit3, Wand2, FileType2, Loader2, Check } from 'lucide-react';
+import { refactorCode } from '../../services/aiService';
 
 interface StepPreviewProps {
-  config: RepoConfig;
-  rawInput: string;
-  onNext: () => void;
+  files: FileNode[];
+  onNext: (files: FileNode[]) => void;
   onBack: () => void;
-  onFilesGenerated: (files: FileNode[]) => void;
 }
 
-export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNext, onBack, onFilesGenerated }) => {
-  const [files, setFiles] = useState<FileNode[]>([]);
+export const StepPreview: React.FC<StepPreviewProps> = ({ files, onNext, onBack }) => {
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'components']));
+  const [isRefactoring, setIsRefactoring] = useState(false);
+  const [refactorPrompt, setRefactorPrompt] = useState('');
+  const [showRefactorInput, setShowRefactorInput] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadTree = async () => {
-      setLoading(true);
-      // Generate the tree
-      const tree = await generateFileTree(config, rawInput);
-      if (isMounted) {
-        setFiles(tree);
-        onFilesGenerated(tree);
-        // Select package.json or first file by default
-        setSelectedFile(tree.find(f => f.name === 'package.json') || tree[0]);
-        setLoading(false);
+  // Helper to find first file
+  React.useEffect(() => {
+    if (!selectedFile && files.length > 0) {
+      const findFirstFile = (nodes: FileNode[]): FileNode | null => {
+        for (const node of nodes) {
+          if (node.type === FileType.FILE) return node;
+          if (node.children) {
+            const found = findFirstFile(node.children);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      setSelectedFile(findFirstFile(files));
+    }
+  }, [files, selectedFile]);
+
+  const toggleFolder = (id: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedFolders(newExpanded);
+  };
+
+  const handleRefactor = async (instruction: string) => {
+    if (!selectedFile || !selectedFile.content) return;
+
+    setIsRefactoring(true);
+    try {
+      const newContent = await refactorCode(selectedFile.content, instruction, selectedFile.name);
+
+      // Update file content in place (simplified for demo)
+      selectedFile.content = newContent;
+
+      // If converting to TS, update extension
+      if (instruction.includes('Convert to TypeScript') && (selectedFile.name.endsWith('.js') || selectedFile.name.endsWith('.jsx'))) {
+        selectedFile.name = selectedFile.name.replace('.js', '.ts').replace('.jsx', '.tsx');
+        selectedFile.language = 'typescript';
       }
-    };
-    loadTree();
-    return () => { isMounted = false; };
-  }, [config, rawInput]); // eslint-disable-line react-hooks/exhaustive-deps
+
+      setShowRefactorInput(false);
+      setRefactorPrompt('');
+    } catch (error) {
+      console.error("Refactor failed:", error);
+      alert("Refactoring failed. Please check console.");
+    } finally {
+      setIsRefactoring(false);
+    }
+  };
+
+  const renderTree = (nodes: FileNode[], depth = 0) => {
+    return nodes.map((node) => (
+      <div key={node.id} style={{ paddingLeft: `${depth * 12}px` }}>
+        <div
+          className={`flex items-center py-1 px-2 cursor-pointer rounded hover:bg-dark-bg/50 transition-colors ${selectedFile?.id === node.id ? 'bg-brand-900/20 text-brand-300' : 'text-gray-400'
+            }`}
+          onClick={() => {
+            if (node.type === FileType.FOLDER) {
+              toggleFolder(node.id);
+            } else {
+              setSelectedFile(node);
+              setShowRefactorInput(false);
+            }
+          }}
+        >
+          {node.type === FileType.FOLDER && (
+            <span className="mr-1">
+              {expandedFolders.has(node.id) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </span>
+          )}
+          {node.type === FileType.FOLDER ? (
+            <Folder className="w-4 h-4 mr-2 text-blue-400" />
+          ) : (
+            <FileCode2 className="w-4 h-4 mr-2 text-gray-500" />
+          )}
+          <span className="text-sm truncate">{node.name}</span>
+        </div>
+        {node.type === FileType.FOLDER && expandedFolders.has(node.id) && node.children && (
+          <div>{renderTree(node.children, depth + 1)}</div>
+        )}
+      </div>
+    ));
+  };
 
   return (
-    <div className="flex flex-col h-full max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
-      <div className="mb-6 flex justify-between items-end">
+    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-white">Preview Repository</h2>
-          <p className="text-gray-400">Review structure and generated configs before building.</p>
+          <h2 className="text-2xl font-bold text-white">Preview & Refine</h2>
+          <p className="text-gray-400 text-sm">Review generated files and make AI-powered adjustments.</p>
         </div>
         <div className="flex space-x-3">
-          <div className="bg-dark-surface px-3 py-1 rounded border border-dark-border text-xs text-gray-400">
-            <span className="text-green-400 font-bold">{files.length > 0 ? files.length : '...'}</span> files generated
-          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={() => onNext(files)}
+            className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-brand-900/20 transition-all transform hover:-translate-y-0.5"
+          >
+            Generate Repository
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden border border-dark-border rounded-xl bg-dark-surface shadow-2xl min-h-0">
-        {/* Left: File Tree */}
-        <div className="w-72 bg-dark-bg border-r border-dark-border overflow-y-auto p-4">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Project Structure</h3>
-          {loading ? (
-            <div className="text-gray-500 text-sm animate-pulse">Generating tree...</div>
+      {/* Main Content */}
+      <div className="flex-1 flex border border-dark-border rounded-xl overflow-hidden bg-dark-surface h-[500px]">
+        {/* Sidebar */}
+        <div className="w-64 border-r border-dark-border bg-dark-bg/30 overflow-y-auto p-2">
+          {renderTree(files)}
+        </div>
+
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col bg-[#1e1e1e]">
+          {selectedFile ? (
+            <>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-dark-border bg-dark-bg/50">
+                <span className="text-sm font-mono text-gray-300">{selectedFile.name}</span>
+                <div className="flex space-x-2">
+                  {/* Convert JS->TS Shortcut */}
+                  {(selectedFile.name.endsWith('.js') || selectedFile.name.endsWith('.jsx')) && (
+                    <button
+                      onClick={() => handleRefactor('Convert this file to TypeScript. Use proper types and interfaces.')}
+                      disabled={isRefactoring}
+                      className="flex items-center px-2 py-1 text-xs bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded border border-blue-500/30 transition-colors"
+                      title="Auto-convert to TypeScript"
+                    >
+                      {isRefactoring ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <FileType2 className="w-3 h-3 mr-1" />}
+                      JS → TS
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowRefactorInput(!showRefactorInput)}
+                    className={`flex items-center px-2 py-1 text-xs rounded border transition-colors ${showRefactorInput ? 'bg-brand-500/20 text-brand-300 border-brand-500/50' : 'bg-dark-bg text-gray-400 border-dark-border hover:text-white'}`}
+                  >
+                    <Wand2 className="w-3 h-3 mr-1" />
+                    AI Refactor
+                  </button>
+                </div>
+              </div>
+
+              {/* AI Refactor Input */}
+              {showRefactorInput && (
+                <div className="p-3 bg-dark-bg border-b border-dark-border animate-in slide-in-from-top-2">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={refactorPrompt}
+                      onChange={(e) => setRefactorPrompt(e.target.value)}
+                      placeholder="e.g., 'Add error handling', 'Use arrow functions', 'Add comments'..."
+                      className="flex-1 bg-dark-surface border border-dark-border rounded px-3 py-1 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                      onKeyDown={(e) => e.key === 'Enter' && handleRefactor(refactorPrompt)}
+                    />
+                    <button
+                      onClick={() => handleRefactor(refactorPrompt)}
+                      disabled={!refactorPrompt.trim() || isRefactoring}
+                      className="px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded disabled:opacity-50"
+                    >
+                      {isRefactoring ? 'Refactoring...' : 'Apply'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-auto p-4">
+                <pre className="font-mono text-sm text-gray-300 whitespace-pre-wrap">
+                  {selectedFile.content || '// Empty file'}
+                </pre>
+              </div>
+            </>
           ) : (
-            <FileTree nodes={files} onSelectFile={setSelectedFile} selectedFileId={selectedFile?.id} />
+            <div className="flex-1 flex items-center justify-center text-gray-500">
+              Select a file to preview
+            </div>
           )}
         </div>
-
-        {/* Right: Code Preview */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="h-10 border-b border-dark-border bg-dark-bg flex items-center px-4 justify-between">
-            <span className="text-sm text-gray-300 font-mono">{selectedFile?.name}</span>
-            {selectedFile?.isNew && <span className="text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded">Generated</span>}
-          </div>
-          <div className="flex-1 overflow-auto bg-[#0d1117] p-4 relative group">
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-gray-600 animate-pulse">
-                Generating content...
-              </div>
-            ) : selectedFile?.content ? (
-              <pre className="font-mono text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                <code>{selectedFile.content}</code>
-              </pre>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-600">
-                Select a file to view content
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 flex justify-between items-center">
-        <button onClick={onBack} className="text-gray-400 hover:text-white font-medium px-4 py-2">Back to Config</button>
-        <button
-          onClick={onNext}
-          disabled={loading || files.length === 0}
-          className="bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-green-900/20 flex items-center transition-transform transform hover:-translate-y-0.5"
-        >
-          <Download className="w-5 h-5 mr-2" />
-          Generate & Download ZIP
-        </button>
       </div>
     </div>
   );

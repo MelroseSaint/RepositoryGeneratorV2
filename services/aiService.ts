@@ -145,8 +145,14 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
         let featureContext = "";
         if (config.features?.length) {
             featureContext = `\nInclude configuration/scaffolding for these features: ${config.features.join(', ')}.`;
-            if (config.features.includes('auth')) requestedFiles.push("src/lib/auth.ts"); // Example
-            if (config.features.includes('db')) requestedFiles.push("prisma/schema.prisma"); // Example
+            if (config.features.includes('auth')) requestedFiles.push("src/lib/auth.ts");
+            if (config.features.includes('db')) requestedFiles.push("prisma/schema.prisma");
+            if (config.features.includes('docs')) {
+                requestedFiles.push("CONTRIBUTING.md");
+                requestedFiles.push("CHANGELOG.md");
+                requestedFiles.push("docs/architecture.md");
+                requestedFiles.push("docs/setup.md");
+            }
         }
 
         // Simplified prompt to reduce complexity and avoid timeouts

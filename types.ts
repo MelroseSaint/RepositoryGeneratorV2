@@ -86,7 +86,8 @@ export const FEATURES = [
   { id: 'i18n', label: 'Internationalization (i18n)' },
   { id: 'analytics', label: 'Analytics Setup' },
   { id: 'seo', label: 'SEO Optimization' },
-  { id: 'pwa', label: 'PWA Support' }
+  { id: 'pwa', label: 'PWA Support' },
+  { id: 'docs', label: 'Advanced Documentation (Docs, Changelog)' }
 ];
 
 export const INITIAL_CONFIG: RepoConfig = {

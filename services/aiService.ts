@@ -177,24 +177,67 @@ Keep it simple and concise.`;
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('AI generation timeout after 30s')), timeoutMs)
         );
-        if (entryFileIndex !== -1) {
-            const entryFile = root[entryFileIndex];
-            root.splice(entryFileIndex, 1);
-            root.push({
-                id: 'src',
-                name: 'src',
-                type: FileType.FOLDER,
-                children: [entryFile]
-            });
+
+        const result = await Promise.race([
+            model.generateContent(prompt),
+            timeoutPromise
+        ]) as any;
+
+        console.log('[AI Service] Received response from Gemini');
+
+        const response = await result.response;
+        const text = response.text();
+
+        try {
+            // Clean up markdown code blocks if present
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            const files = JSON.parse(jsonStr);
+
+            // Convert flat object to FileNode array
+            const fileNodes: FileNode[] = [];
+            for (const [path, content] of Object.entries(files)) {
+                const parts = path.split('/');
+                let currentLevel = fileNodes;
+
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    const isFile = i === parts.length - 1;
+
+                    if (isFile) {
+                        currentLevel.push({
+                            name: part,
+                            type: FileType.FILE,
+                            content: content as string,
+                            id: path.replace(/\./g, '-').replace(/\//g, '-'),
+                            language: part.split('.').pop()
+                        });
+                    } else {
+                        let folder = currentLevel.find(n => n.name === part && n.type === FileType.FOLDER);
+                        if (!folder) {
+                            folder = {
+                                name: part,
+                                type: FileType.FOLDER,
+                                children: [],
+                                id: part
+                            };
+                            currentLevel.push(folder);
+                        }
+                        currentLevel = folder.children!;
+                    }
+                }
+            }
+
+            return fileNodes;
+        } catch (e) {
+            console.error("Failed to parse AI response:", e);
+            console.log("Raw response:", text);
+            // Fallback to mock if parsing fails
+            return mockGenerate(config, rawInput);
         }
+    } catch (error) {
+        console.error("AI Generation failed:", error);
+        return mockGenerate(config, rawInput);
     }
-
-        return root;
-
-} catch (error) {
-    console.error("[AI Service] AI Generation failed. Falling back to mock. Error:", error);
-    return mockGenerate(config, rawInput);
-}
 };
 
 // --- Fallbacks / Mocks ---
@@ -299,3 +342,40 @@ const generateGithubNodes = (config: RepoConfig): FileNode | null => {
 
     return { id: 'github-folder', name: '.github', type: FileType.FOLDER, children: githubChildren };
 };
+
+export const refactorCode = async (code: string, instruction: string, fileName: string): Promise<string> => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        return `// AI Refactoring Unavailable (No API Key)\n// Instruction: ${instruction}\n\n${code}`;
+    }
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+        const prompt = `You are an expert code refactoring assistant.
+Refactor the following code from file "${fileName}" according to these instructions: "${instruction}".
+
+Rules:
+1. Return ONLY the refactored code. No markdown formatting, no explanations.
+2. If converting JS to TS, add appropriate types and interfaces.
+3. Maintain the original logic unless asked to change it.
+4. If the instruction is unclear, improve code quality and add comments.
+
+Code:
+${code}`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text();
+
+        // Clean up markdown if present
+        text = text.replace(/```(typescript|javascript|tsx|jsx|json)?\n?|\n?```/g, '').trim();
+
+        return text;
+    } catch (error) {
+        console.error("Refactoring failed:", error);
+        throw new Error("AI Refactoring failed. Please check your API key and try again.");
+    }
+};
+

@@ -351,7 +351,7 @@ export const refactorCode = async (code: string, instruction: string, fileName: 
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const prompt = `You are an expert code refactoring assistant.
 Refactor the following code from file "${fileName}" according to these instructions: "${instruction}".

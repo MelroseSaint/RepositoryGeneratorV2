@@ -1,381 +1,299 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { DetectionResult, FileNode, FileType, RepoConfig } from '../types';
 
-// Initialize Gemini
-// Note: In a real prod app, you'd proxy this through a backend to hide the key.
-// For this local tool/demo, using the env var directly is acceptable.
+// --- API Key Management ---
 
 let runtimeApiKey = '';
 
-// Try to load from localStorage on client side
+// On client-side, try loading from localStorage to persist user's key
 if (typeof window !== 'undefined') {
     runtimeApiKey = localStorage.getItem('gemini_api_key') || '';
 }
 
+/**
+ * Sets the API key for the current session and stores it in localStorage.
+ * @param key The Google Gemini API key.
+ */
 export const setApiKey = (key: string) => {
     runtimeApiKey = key;
     if (typeof window !== 'undefined') {
-        localStorage.setItem('gemini_api_key', key);
+        try {
+            localStorage.setItem('gemini_api_key', key);
+        } catch (e) {
+            console.warn("Could not save API key to localStorage:", e);
+        }
     }
 };
 
-export const getApiKey = () => {
-    // Prioritize runtime key (user input)
+/**
+ * Retrieves the API key, prioritizing user input, then environment variables.
+ * @returns The API key or an empty string if not found.
+ */
+export const getApiKey = (): string => {
+    // 1. Prioritize runtime key (user input via UI)
     if (runtimeApiKey) return runtimeApiKey;
 
-    // Check environment variables safely
-    // Vite 'define' replaces process.env.GEMINI_API_KEY string literal
-    // We also check import.meta.env for standard Vite usage
+    // 2. Check for Vite environment variable (import.meta.env)
+    // @ts-ignore - Vite specific env var
+    if (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+        // @ts-ignore
+        return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+
+    // 3. Check for Node.js environment variable (process.env)
+    // This is useful for scripts like test-ai-connection.js
     try {
-        if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+        if (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
             return process.env.GEMINI_API_KEY;
         }
     } catch (e) {
-        // Ignore process access errors
-    }
-
-    try {
-        // @ts-ignore - Vite specific
-        if (import.meta.env?.VITE_GEMINI_API_KEY) {
-            // @ts-ignore
-            return import.meta.env.VITE_GEMINI_API_KEY;
-        }
-    } catch (e) {
-        // Ignore import.meta access errors
+        // process is not defined in browser, ignore error.
     }
 
     return '';
 };
 
+/**
+ * Initializes and returns a Gemini model instance if an API key is available.
+ */
 const getModel = () => {
     const key = getApiKey();
     if (!key) return null;
-    const genAI = new GoogleGenerativeAI(key);
-    // Using gemini-flash-latest for stability and access to latest features
-    return genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    try {
+        const genAI = new GoogleGenerativeAI(key);
+        // Using gemini-1.5-flash for speed and cost-effectiveness
+        return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    } catch (error) {
+        console.error("Error initializing GoogleGenerativeAI:", error);
+        return null;
+    }
 };
 
-const MOCK_DELAY = 1500;
+// --- Helper Functions ---
 
 /**
- * Detects the tech stack using Gemini if available, otherwise falls back to heuristics.
+ * Parses a JSON string from the AI's response, cleaning up markdown.
+ * @param text The raw text response from the AI.
+ * @returns A parsed JSON object.
+ */
+const parseJsonResponse = <T>(text: string): T => {
+    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+    try {
+        return JSON.parse(jsonStr) as T;
+    } catch (e) {
+        console.error("Failed to parse AI JSON response:", e);
+        console.log("Raw response that failed parsing:", text);
+        throw new Error("Invalid JSON response from AI.");
+    }
+};
+
+/**
+ * A utility to add a timeout to a promise.
+ * @param promise The promise to race against the timeout.
+ * @param ms The timeout duration in milliseconds.
+ * @returns The result of the promise or throws a timeout error.
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(new Error(`Operation timed out after ${ms}ms`));
+        }, ms);
+
+        promise.then(
+            (res) => {
+                clearTimeout(timeoutId);
+                resolve(res);
+            },
+            (err) => {
+                clearTimeout(timeoutId);
+                reject(err);
+            }
+        );
+    });
+};
+
+// --- Core AI Services ---
+
+const MOCK_DELAY = 1000;
+
+/**
+ * Detects the tech stack using Gemini if available, otherwise falls back to mock.
  */
 export const detectStack = async (input: string): Promise<DetectionResult> => {
     const model = getModel();
-
     if (!model) {
         console.warn("No API Key found, using mock detection.");
         await new Promise(resolve => setTimeout(resolve, MOCK_DELAY));
         return mockDetect(input);
     }
 
-    try {
-        const prompt = `
-      Analyze the following code snippet and detect the technology stack.
-      Return ONLY a JSON object with this structure:
+    const prompt = `
+      Analyze this code and identify the tech stack.
+      Respond with ONLY a valid JSON object matching this schema:
       {
-        "language": "string (e.g. TypeScript, Python)",
-        "framework": "string (e.g. React, Flask, Next.js)",
-        "confidence": number (0-100),
-        "suggestedProjectType": "string (e.g. Frontend, Backend, Fullstack)",
-        "detectedFiles": number (estimated count of files needed)
+        "language": "string",
+        "framework": "string",
+        "confidence": "number (0-100)",
+        "suggestedProjectType": "string ('Frontend', 'Backend', 'Fullstack')",
+        "detectedFiles": "number (estimated files needed)"
       }
-
-      Code Snippet:
-      ${input.slice(0, 2000)}
+      Code:
+      ${input.slice(0, 2500)}
     `;
 
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
-
-        // Clean up markdown code blocks if present
-        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(jsonStr) as DetectionResult;
-
+    try {
+        const result = await withTimeout(model.generateContent(prompt), 15000);
+        const text = result.response.text();
+        return parseJsonResponse<DetectionResult>(text);
     } catch (error) {
         console.error("AI Detection failed:", error);
-        return mockDetect(input);
+        return mockDetect(input); // Fallback on error
     }
 };
 
 /**
- * Generates the file tree using Gemini to create intelligent content.
+ * Generates the file tree using Gemini with a fallback to mock generation.
  */
 export const generateFileTree = async (config: RepoConfig, rawInput: string): Promise<FileNode[]> => {
     const model = getModel();
-    console.log('[AI Service] generateFileTree called. Model available:', !!model);
-
-    // If no key, use the deterministic mock generator
     if (!model) {
-        console.warn("[AI Service] No model/key found. Falling back to mock.");
+        console.warn("No model/key found, falling back to mock file generation.");
         return mockGenerate(config, rawInput);
     }
+
+    const requestedFiles = [
+        "package.json", "README.md", ".gitignore",
+        config.useTypeScript ? "tsconfig.json" : null,
+        config.linter === 'eslint' ? ".eslintrc.json" : null,
+        config.formatter === 'prettier' ? ".prettierrc" : null,
+        config.includeDocker ? "Dockerfile" : null,
+    ].filter(Boolean) as string[];
+
+    const prompt = `
+      Generate a repository structure as a JSON object where keys are file paths and values are their string content.
+      Base it on this configuration:
+      - Project Name: ${config.name}
+      - Description: ${config.description}
+      - Language: ${config.language}
+      - Framework: ${config.framework}
+      - Type: ${config.projectType}
+      - Source Code: Use the provided snippet as the main entry point (e.g., src/index.ts or App.tsx).
+
+      Return ONLY a valid JSON object. Example: { "README.md": "# Title", "src/index.js": "console.log(\\"hello\\")" }
+
+      Files to generate: ${requestedFiles.join(', ')}
+
+      Initial source code snippet to include:
+      ${rawInput.slice(0, 1000)}
+    `;
 
     try {
-        // We will generate the structure and key files in one go, or parallelize.
-        // For speed, let's generate the file LIST first, then content? 
-        // Or just ask for the critical files.
-
-        // Strategy: Ask Gemini to generate the package.json and README content based on the config.
-        // We will construct the rest of the standard boilerplate (tsconfig, etc) manually to ensure validity,
-        // but inject the AI content where it matters.
-
-        console.log('[AI Service] Starting AI generation...');
-        console.log('[AI Service] Config:', {
-            projectType: config.projectType,
-            framework: config.framework,
-            language: config.language,
-            name: config.name
-        });
-
-        // Build list of requested files based on config
-        const requestedFiles = [
-            "package.json",
-            "README.md",
-            ".gitignore"
-        ];
-
-        if (config.ideConfig?.includes('vscode')) requestedFiles.push(".vscode/settings.json");
-        if (config.ideConfig?.includes('editorconfig')) requestedFiles.push(".editorconfig");
-        if (config.ideConfig?.includes('idea')) requestedFiles.push(".idea/workspace.xml"); // Simplified
-        if (config.ideConfig?.includes('devcontainer')) requestedFiles.push(".devcontainer/devcontainer.json");
-
-        // Add feature-specific files hints
-        let featureContext = "";
-        if (config.features?.length) {
-            featureContext = `\nInclude configuration/scaffolding for these features: ${config.features.join(', ')}.`;
-            if (config.features.includes('auth')) requestedFiles.push("src/lib/auth.ts");
-            if (config.features.includes('db')) requestedFiles.push("prisma/schema.prisma");
-            if (config.features.includes('docs')) {
-                requestedFiles.push("CONTRIBUTING.md");
-                requestedFiles.push("CHANGELOG.md");
-                requestedFiles.push("docs/architecture.md");
-                requestedFiles.push("docs/setup.md");
-            }
-        }
-
-        // Simplified prompt to reduce complexity and avoid timeouts
-        const prompt = `Generate a JSON object with configuration files for a ${config.projectType} project using ${config.framework} and ${config.language}.
-${featureContext}
-
-Project Name: ${config.name}
-Description: ${config.description}
-
-Return ONLY a JSON object (no markdown, no explanation) with these files:
-{
-  ${requestedFiles.map(f => `"${f}": "..."`).join(',\n  ')}
-}
-
-Keep it simple and concise.`;
-
-        console.log('[AI Service] Sending prompt to Gemini...');
-        console.log('[AI Service] Prompt length:', prompt.length);
-
-        // Add timeout to prevent indefinite hanging
-        const timeoutMs = 30000; // 30 seconds
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('AI generation timeout after 30s')), timeoutMs)
-        );
-
-        const result = await Promise.race([
-            model.generateContent(prompt),
-            timeoutPromise
-        ]) as any;
-
-        console.log('[AI Service] Received response from Gemini');
-
-        const response = await result.response;
-        const text = response.text();
-
-        try {
-            // Clean up markdown code blocks if present
-            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
-            const files = JSON.parse(jsonStr);
-
-            // Convert flat object to FileNode array
-            const fileNodes: FileNode[] = [];
-            for (const [path, content] of Object.entries(files)) {
-                const parts = path.split('/');
-                let currentLevel = fileNodes;
-
-                for (let i = 0; i < parts.length; i++) {
-                    const part = parts[i];
-                    const isFile = i === parts.length - 1;
-
-                    if (isFile) {
-                        currentLevel.push({
-                            name: part,
-                            type: FileType.FILE,
-                            content: content as string,
-                            id: path.replace(/\./g, '-').replace(/\//g, '-'),
-                            language: part.split('.').pop()
-                        });
-                    } else {
-                        let folder = currentLevel.find(n => n.name === part && n.type === FileType.FOLDER);
-                        if (!folder) {
-                            folder = {
-                                name: part,
-                                type: FileType.FOLDER,
-                                children: [],
-                                id: part
-                            };
-                            currentLevel.push(folder);
-                        }
-                        currentLevel = folder.children!;
-                    }
-                }
-            }
-
-            return fileNodes;
-        } catch (e) {
-            console.error("Failed to parse AI response:", e);
-            console.log("Raw response:", text);
-            // Fallback to mock if parsing fails
-            return mockGenerate(config, rawInput);
-        }
+        const result = await withTimeout(model.generateContent(prompt), 30000);
+        const text = result.response.text();
+        const files = parseJsonResponse<Record<string, string>>(text);
+        return convertFlatObjectToTree(files);
     } catch (error) {
-        console.error("AI Generation failed:", error);
-        return mockGenerate(config, rawInput);
+        console.error("AI File Tree Generation failed:", error);
+        return mockGenerate(config, rawInput); // Fallback on error
     }
 };
 
-// --- Fallbacks / Mocks ---
-
-const mockDetect = (input: string): DetectionResult => {
-    const lower = input.toLowerCase();
-    let result: DetectionResult = {
-        language: 'JavaScript',
-        framework: 'Node.js',
-        confidence: 65,
-        suggestedProjectType: 'Backend',
-        detectedFiles: 1,
-    };
-    if (lower.includes('react') || lower.includes('jsx')) {
-        result = { language: 'JavaScript', framework: 'React', confidence: 92, suggestedProjectType: 'Frontend', detectedFiles: 3 };
-    }
-    if (lower.includes('interface ') || lower.includes('type ') || lower.includes(': string')) {
-        result.language = 'TypeScript';
-    }
-    return result;
-};
-
-const mockGenerate = (config: RepoConfig, rawInput: string): FileNode[] => {
-    const root: FileNode[] = [];
-
-    // Package.json
-    root.push({
-        id: 'pkg-json', name: 'package.json', type: FileType.FILE, language: 'json', isNew: true,
-        content: JSON.stringify({
-            name: config.name, version: "0.1.0", description: config.description,
-            scripts: { "dev": "vite", "build": "vite build" },
-            dependencies: { [config.framework.toLowerCase()]: "^latest" }
-        }, null, 2)
-    });
-
-    // Readme
-    root.push({
-        id: 'readme', name: 'README.md', type: FileType.FILE, language: 'markdown', isNew: true,
-        content: `# ${config.name}\n\n${config.description}\n\nGenerated by RepoGen (Offline Mode).`
-    });
-
-    // GitHub
-    const gh = generateGithubNodes(config);
-    if (gh) root.push(gh);
-
-    // Source
-    const ext = config.language === 'TypeScript' ? 'ts' : 'js';
-    const reactExt = config.language === 'TypeScript' ? 'tsx' : 'jsx';
-    root.push({
-        id: 'src', name: 'src', type: FileType.FOLDER,
-        children: [{
-            id: 'entry', name: `index.${config.framework === 'React' ? reactExt : ext}`,
-            type: FileType.FILE, language: config.language.toLowerCase(),
-            content: `// Offline Mode Entry\n\n${rawInput}`
-        }]
-    });
-
-    return root;
-};
-
-const generateGithubNodes = (config: RepoConfig): FileNode | null => {
-    if (config.ciProvider !== 'github' &&
-        (!config.githubWorkflows || config.githubWorkflows.length === 0) &&
-        (!config.githubTemplates || config.githubTemplates.length === 0) &&
-        (!config.githubCommunity || config.githubCommunity.length === 0) &&
-        !config.githubCodeowners) {
-        return null;
-    }
-
-    const githubChildren: FileNode[] = [];
-    const workflowsChildren: FileNode[] = [];
-
-    // Workflows
-    if (config.ciProvider === 'github' || config.githubWorkflows?.includes('ci')) {
-        workflowsChildren.push({
-            id: 'ci-yml', name: 'ci.yml', type: FileType.FILE, language: 'yaml', isNew: true,
-            content: 'name: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - run: npm ci\n      - run: npm test'
-        });
-    }
-    // ... (Add other workflows as needed, abbreviated for this file replacement)
-
-    if (workflowsChildren.length > 0) {
-        githubChildren.push({ id: 'workflows', name: 'workflows', type: FileType.FOLDER, children: workflowsChildren });
-    }
-
-    // Templates
-    const issueTemplates: FileNode[] = [];
-    if (config.githubTemplates?.includes('bug_report')) {
-        issueTemplates.push({
-            id: 'bug-report', name: 'bug_report.md', type: FileType.FILE, language: 'markdown', isNew: true,
-            content: '---\nname: Bug report\nabout: Create a report to help us improve\n---\n'
-        });
-    }
-    if (issueTemplates.length > 0) {
-        githubChildren.push({ id: 'issue-templates', name: 'ISSUE_TEMPLATE', type: FileType.FOLDER, children: issueTemplates });
-    }
-
-    // Community
-    if (config.githubCommunity?.includes('contributing')) {
-        githubChildren.push({ id: 'contributing', name: 'CONTRIBUTING.md', type: FileType.FILE, language: 'markdown', isNew: true, content: '# Contributing' });
-    }
-
-    return { id: 'github-folder', name: '.github', type: FileType.FOLDER, children: githubChildren };
-};
-
+/**
+ * Refactors a code snippet based on user instructions.
+ */
 export const refactorCode = async (code: string, instruction: string, fileName: string): Promise<string> => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
+    const model = getModel();
+    if (!model) {
         return `// AI Refactoring Unavailable (No API Key)\n// Instruction: ${instruction}\n\n${code}`;
     }
 
+    const prompt = `
+      You are an expert code refactoring assistant.
+      Refactor the following code from file "${fileName}" based on this instruction: "${instruction}".
+
+      Rules:
+      1. Return ONLY the refactored, complete code. Do not add explanations, markdown, or comments unless requested.
+      2. Maintain the original logic unless asked to change it.
+      3. If the instruction is vague (e.g., "fix this"), improve code quality, add types, and add clarifying comments.
+
+      Original Code:
+      ${code}
+    `;
+
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-        const prompt = `You are an expert code refactoring assistant.
-Refactor the following code from file "${fileName}" according to these instructions: "${instruction}".
-
-Rules:
-1. Return ONLY the refactored code. No markdown formatting, no explanations.
-2. If converting JS to TS, add appropriate types and interfaces.
-3. Maintain the original logic unless asked to change it.
-4. If the instruction is unclear, improve code quality and add comments.
-
-Code:
-${code}`;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        let text = response.text();
-
-        // Clean up markdown if present
-        text = text.replace(/```(typescript|javascript|tsx|jsx|json)?\n?|\n?```/g, '').trim();
-
-        return text;
+        const result = await withTimeout(model.generateContent(prompt), 20000);
+        const text = result.response.text();
+        // Basic cleanup for markdown that might slip through
+        return text.replace(/```[a-z]*\n?|\n?```/g, '').trim();
     } catch (error) {
         console.error("Refactoring failed:", error);
-        throw new Error("AI Refactoring failed. Please check your API key and try again.");
+        throw new Error("AI refactoring failed. Check your API key or the model may be overloaded.");
     }
 };
 
+
+// --- Mocks & Utilities ---
+
+const mockDetect = (input: string): DetectionResult => {
+    const lower = input.toLowerCase();
+    if (lower.includes('react')) return { language: 'TypeScript', framework: 'React', confidence: 90, suggestedProjectType: 'Frontend', detectedFiles: 5 };
+    if (lower.includes('express')) return { language: 'JavaScript', framework: 'Express', confidence: 85, suggestedProjectType: 'Backend', detectedFiles: 4 };
+    return { language: 'JavaScript', framework: 'Node.js', confidence: 60, suggestedProjectType: 'Backend', detectedFiles: 1 };
+};
+
+const mockGenerate = (config: RepoConfig, rawInput: string): FileNode[] => {
+    const ext = config.language === 'TypeScript' ? (config.projectType === 'Frontend' ? 'tsx' : 'ts') : 'js';
+    return [
+        { id: 'pkg', name: 'package.json', type: FileType.FILE, content: JSON.stringify({ name: config.name, version: '0.1.0' }, null, 2) },
+        { id: 'readme', name: 'README.md', type: FileType.FILE, content: `# ${config.name}\n\n${config.description}` },
+        {
+            id: 'src', name: 'src', type: FileType.FOLDER, children: [
+                { id: 'index', name: `index.${ext}`, type: FileType.FILE, content: rawInput }
+            ]
+        }
+    ];
+};
+
+const convertFlatObjectToTree = (files: Record<string, string>): FileNode[] => {
+    const root: FileNode[] = [];
+    const idMap = new Map<string, FileNode>();
+
+    for (const [path, content] of Object.entries(files)) {
+        const parts = path.split('/');
+        let currentLevel = root;
+        let currentPath = '';
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            currentPath = i === 0 ? part : `${currentPath}/${part}`;
+            const isFile = i === parts.length - 1;
+
+            let node = idMap.get(currentPath);
+
+            if (!node) {
+                if (isFile) {
+                    node = {
+                        name: part,
+                        type: FileType.FILE,
+                        content: content as string,
+                        id: currentPath,
+                    };
+                    currentLevel.push(node);
+                } else {
+                    node = {
+                        name: part,
+                        type: FileType.FOLDER,
+                        children: [],
+                        id: currentPath,
+                    };
+                    currentLevel.push(node);
+                    currentLevel = node.children!;
+                }
+                idMap.set(currentPath, node);
+            } else if (node.type === FileType.FOLDER) {
+                currentLevel = node.children!;
+            }
+        }
+    }
+    return root;
+};

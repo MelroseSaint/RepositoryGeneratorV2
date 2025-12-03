@@ -108,7 +108,7 @@ const App: React.FC = () => {
           {step === AppStep.DETECTION && <StepDetection rawInput={rawInput} onNext={handleDetectionNext} onBack={goBack} />}
           {step === AppStep.CONFIG && <StepConfig config={config} setConfig={setConfig} onNext={handleConfigNext} onBack={goBack} />}
           {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} onFilesGenerated={setGeneratedFiles} />}
-          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} existingFiles={generatedFiles} />}
+          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} onBack={goBack} existingFiles={generatedFiles} />}
         </div>
       </main>
 

@@ -97,88 +97,97 @@ export const createRepository = async (token: string, name: string, description:
     return response.json();
 };
 
-export const pushToGithub = async (token: string, owner: string, repo: string, files: FileNode[], message: string = 'Initial commit'): Promise<void> => {
+export const pushToGithub = async (token: string, owner: string, repo: string, files: FileNode[], message: string = 'Update repository'): Promise<void> => {
     const headers = {
         'Authorization': `token ${token}`,
         'Content-Type': 'application/json',
     };
 
-    // 1. Get the latest commit SHA of the main branch
-    const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/main`, { headers });
-    if (!refRes.ok) throw new Error('Failed to get main branch ref');
-    const refData = await refRes.json();
-    const latestCommitSha = refData.object.sha;
+    // Helper function to fetch all files recursively
+    const fetchAllFiles = async (path: string = ''): Promise<{ [key: string]: { sha: string; type: string } }> => {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const response = await fetch(url, { headers });
+        if (!response.ok) throw new Error(`Failed to fetch contents: ${response.statusText}`);
+        const items = await response.json();
 
-    // 2. Get the tree SHA of the latest commit
-    const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits/${latestCommitSha}`, { headers });
-    const commitData = await commitRes.json();
-    const baseTreeSha = commitData.tree.sha;
+        const filesMap: { [key: string]: { sha: string; type: string } } = {};
 
-    // 3. Create blobs for each file and build the tree array
-    const treeItems = [];
+        for (const item of items) {
+            const fullPath = path ? `${path}/${item.name}` : item.name;
+            if (item.type === 'file') {
+                filesMap[fullPath] = { sha: item.sha, type: item.type };
+            } else if (item.type === 'dir') {
+                const subFiles = await fetchAllFiles(fullPath);
+                Object.assign(filesMap, subFiles);
+            }
+        }
 
-    const processNode = async (node: FileNode, path: string) => {
+        return filesMap;
+    };
+
+    // Fetch existing files
+    const existingFiles = await fetchAllFiles();
+
+    // Flatten the provided files
+    const providedFiles: { [key: string]: string } = {};
+    const processNode = (node: FileNode, path: string) => {
         if (node.type === FileType.FOLDER) {
             if (node.children) {
                 for (const child of node.children) {
-                    await processNode(child, path ? `${path}/${child.name}` : child.name);
+                    processNode(child, path ? `${path}/${child.name}` : child.name);
                 }
             }
         } else {
-            // Create blob
-            const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    content: (typeof node.content === 'string') ? node.content : JSON.stringify(node.content ?? '', null, 2),
-                    encoding: 'utf-8',
-                }),
-            });
-            const blobData = await blobRes.json();
-
-            treeItems.push({
-                path: path ? `${path}/${node.name}` : node.name,
-                mode: '100644',
-                type: 'blob',
-                sha: blobData.sha,
-            });
+            const fullPath = path ? `${path}/${node.name}` : node.name;
+            providedFiles[fullPath] = (typeof node.content === 'string') ? node.content : JSON.stringify(node.content ?? '', null, 2);
         }
     };
-
-    // Flatten files and create blobs
     for (const node of files) {
-        await processNode(node, '');
+        processNode(node, '');
     }
 
-    // 4. Create a new tree
-    const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-            base_tree: baseTreeSha,
-            tree: treeItems,
-        }),
-    });
-    const treeData = await treeRes.json();
-
-    // 5. Create a new commit
-    const newCommitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+    // Create or update files
+    for (const [path, content] of Object.entries(providedFiles)) {
+        const encodedContent = btoa(unescape(encodeURIComponent(content)));
+        const body: any = {
             message,
-            tree: treeData.sha,
-            parents: [latestCommitSha],
-        }),
-    });
-    const newCommitData = await newCommitRes.json();
+            content: encodedContent,
+            branch: 'main',
+        };
 
-    // 6. Update the reference
-    await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/main`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-            sha: newCommitData.sha,
-        }),
-    });
+        if (existingFiles[path]) {
+            body.sha = existingFiles[path].sha; // For update
+        }
+
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`Failed to create/update file ${path}: ${error.message}`);
+        }
+
+        delete existingFiles[path]; // Mark as processed
+    }
+
+    // Delete files not in provided list
+    for (const [path, { sha }] of Object.entries(existingFiles)) {
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({
+                message,
+                sha,
+                branch: 'main',
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`Failed to delete file ${path}: ${error.message}`);
+        }
+    }
 };

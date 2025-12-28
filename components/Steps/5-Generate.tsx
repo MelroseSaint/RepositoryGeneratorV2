@@ -83,8 +83,12 @@ export const StepGenerate: React.FC<StepGenerateProps> = ({ config, rawInput, on
           addFilesToZip(folder, node.children);
         }
       } else {
-        // Ensure we don't write null/undefined content
-        zip.file(node.name, node.content || '');
+        const data = typeof node.content === 'string'
+          ? node.content
+          : node.content != null
+            ? JSON.stringify(node.content, null, 2)
+            : '';
+        zip.file(node.name, data);
       }
     });
   };

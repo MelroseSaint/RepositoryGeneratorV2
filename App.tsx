@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { AppStep, DetectionResult, FileNode, INITIAL_CONFIG, RepoConfig } from './types';
 import { StepUpload } from './components/Steps/1-Upload';
-import { StepDetection } from './components/Steps/2-Detection';
-import { StepConfig } from './components/Steps/3-Config';
+import { StepBlueprintSelection } from './components/Steps/2-BlueprintSelection';
+import { StepContractValidation } from './components/Steps/3-ContractValidation';
 import { StepPreview } from './components/Steps/4-Preview';
 import { StepGenerate } from './components/Steps/5-Generate';
 import { ApiKeyInput } from './components/ApiKeyInput';
@@ -72,7 +72,7 @@ const App: React.FC = () => {
           </div>
 
           <nav className="hidden md:flex items-center space-x-1">
-            {[AppStep.UPLOAD, AppStep.DETECTION, AppStep.CONFIG, AppStep.PREVIEW, AppStep.GENERATE].map((s) => (
+            {[AppStep.UPLOAD, AppStep.BLUEPRINT_SELECTION, AppStep.CONTRACT_VALIDATION, AppStep.PREVIEW, AppStep.GENERATE].map((s) => (
               <div key={s} className="flex items-center">
                 <div className={`w-2 h-2 rounded-full ${step >= s ? 'bg-brand-500' : 'bg-dark-border'} transition-colors`} />
                 {s !== AppStep.GENERATE && <div className={`w-8 h-0.5 mx-1 ${step > s ? 'bg-brand-800' : 'bg-dark-border'} transition-colors`} />}
@@ -105,8 +105,8 @@ const App: React.FC = () => {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
         <div className="flex-1 relative">
           {step === AppStep.UPLOAD && <StepUpload onNext={handleUploadNext} />}
-          {step === AppStep.DETECTION && <StepDetection rawInput={rawInput} onNext={handleDetectionNext} onBack={goBack} />}
-          {step === AppStep.CONFIG && <StepConfig config={config} setConfig={setConfig} onNext={handleConfigNext} onBack={goBack} />}
+          {step === AppStep.BLUEPRINT_SELECTION && <StepBlueprintSelection onNext={handleBlueprintSelectionNext} onBack={goBack} />}
+          {step === AppStep.CONTRACT_VALIDATION && <StepContractValidation config={config} setConfig={setConfig} onNext={handleContractValidationNext} onBack={goBack} />}
           {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} onFilesGenerated={setGeneratedFiles} />}
           {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} existingFiles={generatedFiles} />}
         </div>

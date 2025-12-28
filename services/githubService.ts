@@ -74,6 +74,8 @@ export const createRepository = async (token: string, name: string, description:
         headers: {
             'Authorization': `token ${token}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
         },
         body: JSON.stringify({
             name,
@@ -85,7 +87,11 @@ export const createRepository = async (token: string, name: string, description:
 
     if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || 'Failed to create repository');
+        const msg = typeof err?.message === 'string' ? err.message : 'Failed to create repository';
+        if (msg.includes('Resource not accessible by personal access token')) {
+            throw new Error('Token lacks repo scope or permissions for repository creation. Generate a classic PAT with "repo" scope or grant repository access.');
+        }
+        throw new Error(msg);
     }
 
     return response.json();
@@ -124,7 +130,7 @@ export const pushToGithub = async (token: string, owner: string, repo: string, f
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
-                    content: node.content || '',
+                    content: (typeof node.content === 'string') ? node.content : JSON.stringify(node.content ?? '', null, 2),
                     encoding: 'utf-8',
                 }),
             });

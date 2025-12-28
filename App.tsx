@@ -108,7 +108,7 @@ const App: React.FC = () => {
           {step === AppStep.BLUEPRINT_SELECTION && <StepBlueprintSelection onNext={handleBlueprintSelectionNext} onBack={goBack} />}
           {step === AppStep.CONTRACT_VALIDATION && <StepContractValidation config={config} setConfig={setConfig} onNext={handleContractValidationNext} onBack={goBack} />}
           {step === AppStep.PREVIEW && <StepPreview config={config} rawInput={rawInput} onNext={handlePreviewNext} onBack={goBack} onFilesGenerated={setGeneratedFiles} />}
-          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} existingFiles={generatedFiles} />}
+          {step === AppStep.GENERATE && <StepGenerate config={config} rawInput={rawInput} onReset={handleReset} onBack={goBack} existingFiles={generatedFiles} />}
         </div>
       </main>
 

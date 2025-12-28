@@ -1,49 +1,56 @@
-import 'dotenv/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import fs from 'fs';
-import path from 'path';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load .env.local if it exists
-const envLocalPath = path.resolve(process.cwd(), '.env.local');
-if (fs.existsSync(envLocalPath)) {
-    const envConfig = dotenv.parse(fs.readFileSync(envLocalPath));
-    for (const k in envConfig) {
-        process.env[k] = envConfig[k];
-    }
-}
+// Load .env.local manually for script execution
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 async function testConnection() {
-    console.log('🧪 Testing Gemini AI Connection...');
+    console.log('🧪 Testing Gemini AI Connection (TypeScript)...');
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
 
     if (!apiKey) {
-        console.error('❌ Error: GEMINI_API_KEY is not defined in environment variables.');
-        console.log('👉 Please create a .env.local file with GEMINI_API_KEY=your_key_here');
+        console.error('❌ Error: GEMINI_API_KEY is not defined.');
+        console.log('👉 Please create a .env.local file and add your GEMINI_API_KEY.');
         process.exit(1);
     }
 
-    console.log('🔑 API Key found (length: ' + apiKey.length + ')');
+    console.log(`🔑 API Key found (ending with ...${apiKey.slice(-4)}).`);
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        // Using gemini-flash-latest as verified
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        console.log('📡 Sending test prompt to Gemini (model: gemini-flash-latest)...');
-        const result = await model.generateContent('Hello! Are you working? Reply with "Yes, I am working!"');
+        console.log('📡 Sending a test prompt to the Gemini API...');
+
+        const result = await model.generateContent('Hello! Respond with "Yes, I am working!"');
         const response = result.response;
         const text = response.text();
 
-        console.log('✅ Success! Response from AI:');
-        console.log('--------------------------------------------------');
-        console.log(text);
-        console.log('--------------------------------------------------');
+        if (text.includes('Yes, I am working!')) {
+            console.log('✅ Success! AI model responded correctly.');
+            console.log('----------------------------------------');
+            console.log(`AI Response: "${text}"`);
+            console.log('----------------------------------------');
+        } else {
+            throw new Error(`Unexpected response: ${text}`);
+        }
 
     } catch (error: any) {
         console.error('❌ API Call Failed:');
-        console.error(error.message);
+        if (error.message) {
+            console.error(`   Error Message: ${error.message}`);
+        }
+        if (error.stack) {
+            console.error(`   Stack Trace: ${error.stack}`);
+        }
+        console.log('\nTroubleshooting Tips:');
+        console.log('1. Double-check your GEMINI_API_KEY in .env.local.');
+        console.log('2. Ensure you have internet connectivity.');
+        console.log('3. Check the Google AI status page for API outages.');
         process.exit(1);
     }
 }

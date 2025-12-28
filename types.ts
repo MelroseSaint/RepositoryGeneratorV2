@@ -1,9 +1,10 @@
 export enum AppStep {
   UPLOAD = 0,
-  BLUEPRINT_SELECTION = 1,
-  CONTRACT_VALIDATION = 2,
-  PREVIEW = 3,
-  GENERATE = 4
+  DETECTION = 1,
+  BLUEPRINT_SELECTION = 2,
+  CONFIG = 3,
+  PREVIEW = 4,
+  GENERATE = 5
 }
 
 export enum FileType {

@@ -20,8 +20,8 @@ async function fetchGoogleModels(apiKey: string): Promise<string[]> {
     // For now, return known working models without testing
     // Testing can cause rate limits and errors during initialization
     const workingModels = [
-      'gemini-1.5-pro',
-      'gemini-1.5-flash',
+      'gemini-1.5-pro-latest',
+      'gemini-1.5-flash-latest',
       'gemini-1.0-pro'
     ];
     

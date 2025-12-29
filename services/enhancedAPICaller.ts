@@ -229,6 +229,15 @@ export class EnhancedAPICaller {
   // Health check for a specific provider/model
   async healthCheck(provider: AIProvider, model?: string): Promise<boolean> {
     try {
+      // Check if provider has any API keys configured
+      const { getKeysForProvider } = await import('./modelRegistry');
+      const providerKeys = getKeysForProvider(provider);
+      
+      if (providerKeys.length === 0) {
+        console.log(`⚠️ No API keys configured for ${provider}, skipping health check`);
+        return false;
+      }
+      
       const result = await this.generateContent(provider, model, {
         prompt: 'Hello, this is a health check.',
         maxTokens: 10
@@ -248,7 +257,12 @@ export class EnhancedAPICaller {
     };
 
     const checks = Object.values(AIProvider).map(async (provider) => {
-      results[provider] = await this.healthCheck(provider);
+      try {
+        results[provider] = await this.healthCheck(provider);
+      } catch (error) {
+        console.warn(`⚠️ Health check failed for ${provider}:`, error);
+        results[provider] = false;
+      }
     });
 
     await Promise.all(checks);

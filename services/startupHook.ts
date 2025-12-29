@@ -61,14 +61,21 @@ export async function initializeModelRegistry(): Promise<void> {
     // Step 2: Populate available models for all keys
     await populateAvailableModels();
     
-    // Step 3: Perform health checks
+    // Step 3: Perform health checks only if API keys are configured
     console.log('🏥 Performing health checks on all providers...');
-    const healthResults = await healthCheckAllProviders();
+    const { getRegistryStats } = await import('./modelRegistry');
+    const stats = getRegistryStats();
     
-    Object.entries(healthResults).forEach(([provider, isHealthy]) => {
-      const status = isHealthy ? '✅ Healthy' : '❌ Unhealthy';
-      console.log(`${status}: ${provider}`);
-    });
+    if (stats.totalKeys > 0) {
+      const healthResults = await healthCheckAllProviders();
+      
+      Object.entries(healthResults).forEach(([provider, isHealthy]) => {
+        const status = isHealthy ? '✅ Healthy' : '❌ Unhealthy';
+        console.log(`${status}: ${provider}`);
+      });
+    } else {
+      console.log('⚠️ No API keys configured, skipping health checks');
+    }
     
     console.log('🎉 Model Registry initialization complete!');
     console.log('🔄 Multi-model support is now active.');

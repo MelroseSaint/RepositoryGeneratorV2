@@ -17,23 +17,15 @@ async function fetchGoogleModels(apiKey: string): Promise<string[]> {
       'gemini-pro-vision'
     ];
     
-    // Test which models are actually available
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const workingModels: string[] = [];
+    // For now, return known working models without testing
+    // Testing can cause rate limits and errors during initialization
+    const workingModels = [
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'gemini-1.0-pro'
+    ];
     
-    for (const modelId of knownModels) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelId });
-        // Quick test to see if model is accessible
-        await model.generateContent('test');
-        workingModels.push(modelId);
-      } catch (error) {
-        // Model not available, skip
-        continue;
-      }
-    }
-    
-    return workingModels.length > 0 ? workingModels : knownModels;
+    return workingModels;
   } catch (error) {
     console.error('Failed to fetch Google models:', error);
     // Return fallback models

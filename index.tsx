@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ModelRegistry } from './services/modelRegistrySystem';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -27,12 +28,12 @@ root.render(
   </React.StrictMode>
 );
 
-// Initialize dynamic model discovery
+// Initialize the model registry system
 (async () => {
   try {
-    await populateAvailableModels();
-    console.log('🎉 Dynamic model discovery initialized successfully');
+    await ModelRegistry.initialize();
+    console.log('🎉 Model Registry system initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize dynamic model discovery:', error);
+    console.error('❌ Failed to initialize Model Registry:', error);
   }
 })();

@@ -61,7 +61,10 @@ export class EnhancedAPICaller {
       console.log(`🎯 Using model: ${selection.model} with key: ${selection.keyId} (${provider})`);
       
       // Attempt generation with retries
-      const result = await this.attemptGeneration(selection, request);
+      const result = await this.attemptGeneration({
+        ...selection,
+        provider
+      }, request);
       
       // Update usage tracking on success
       updateKeyUsage(selection.keyId, true);
@@ -90,15 +93,12 @@ export class EnhancedAPICaller {
 
   // Attempt generation with retry logic
   private async attemptGeneration(
-    selection: { apiKey: string; model: string; keyId: string },
+    selection: { apiKey: string; model: string; keyId: string; provider: AIProvider },
     request: GenerationRequest,
     attempt: number = 1
   ): Promise<Omit<GenerationResponse, 'provider' | 'keyId' | 'success'>> {
     try {
-      switch (selection.model.includes('gpt') ? AIProvider.OPENAI :
-              selection.model.includes('claude') ? AIProvider.ANTHROPIC :
-              selection.model.includes('gemini') ? AIProvider.GOOGLE :
-              AIProvider.GOOGLE) {
+      switch (selection.provider) {
         
         case AIProvider.OPENAI:
           return await this.callOpenAI(selection.apiKey, selection.model, request);

@@ -260,7 +260,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();

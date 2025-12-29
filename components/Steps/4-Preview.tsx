@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileNode, RepoConfig, FileType } from '../../types';
 import { generateFileTree } from '../../services/aiService';
-import { FileCode2, Folder, ChevronRight, ChevronDown, Wand2, FileType2, Loader2 } from 'lucide-react';
+import { FileCode2, Folder, ChevronRight, ChevronDown, Wand2, FileType2, Loader2, AlertTriangle } from 'lucide-react';
 import { refactorCode } from '../../services/aiService';
 
 interface StepPreviewProps {
@@ -20,6 +20,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
   const [isRefactoring, setIsRefactoring] = useState(false);
   const [refactorPrompt, setRefactorPrompt] = useState('');
   const [showRefactorInput, setShowRefactorInput] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,6 +63,7 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
     if (!selectedFile || !selectedFile.content) return;
 
     setIsRefactoring(true);
+    setError(null);
     try {
       const newContent = await refactorCode(selectedFile.content, instruction, selectedFile.name);
 
@@ -78,9 +80,9 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
       setRefactorPrompt('');
       // Force re-render
       setFiles([...files]);
-    } catch (error) {
-      console.error("Refactor failed:", error);
-      alert("Refactoring failed. Please check console.");
+    } catch (err) {
+      console.error("Refactor failed:", err);
+      setError("AI Refactoring failed. Please verify your API key and try again.");
     } finally {
       setIsRefactoring(false);
     }
@@ -205,6 +207,13 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
                       {isRefactoring ? 'Refactoring...' : 'Apply'}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="mx-3 mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs flex items-center">
+                  <AlertTriangle className="w-3 h-3 mr-2" />
+                  {error}
                 </div>
               )}
 

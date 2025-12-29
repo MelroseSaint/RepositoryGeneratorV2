@@ -85,7 +85,13 @@ const App: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <ApiKeyInput onKeyChange={setHasApiKey} />
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors">
+            <a
+              href="https://github.com/MelroseSaint/RepositoryGeneratorV2"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-gray-400 hover:text-white transition-colors"
+              title="View on GitHub"
+            >
               <Terminal className="w-5 h-5" />
             </a>
           </div>
@@ -94,11 +100,15 @@ const App: React.FC = () => {
 
       {/* API Key Announcement Banner */}
       {!hasApiKey && (
-        <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-2 px-4 animate-in slide-in-from-top-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-center text-yellow-200 text-sm">
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            <span>
-              <strong>Note:</strong> A Gemini API key is required for real-time code generation. Without it, the app runs in demo mode with simulated outputs.
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-3 px-4 animate-in slide-in-from-top-2">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center text-yellow-200 text-sm gap-2">
+            <div className="flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="font-semibold text-yellow-400">Enterprise API Notice:</span>
+            </div>
+            <span className="text-center md:text-left opacity-90">
+              A valid Gemini API key is required for production-grade code generation via Gemini 2.0 Flash. Operating in deterministic demo mode.
+              All AI interactions are governed by our strict <strong>API Validation Authority</strong> standards for security and reliability.
             </span>
           </div>
         </div>

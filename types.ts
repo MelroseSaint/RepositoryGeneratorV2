@@ -188,6 +188,60 @@ export const BLUEPRINTS: Blueprint[] = [
     securityBaseline: ['no-hardcoded-secrets', 'isolation', 'least-privilege'],
     failureMap: ['db-connection-failures', 'auth-bypasses', 'rate-limit-breaches'],
     evolutionPath: ['microservices-split', 'graphql-migration', 'serverless-functions']
+  },
+  {
+    id: 'cli-commander',
+    name: 'CLI Pro Tool',
+    description: 'Professional CLI tool with automated distribution and feature-rich interface',
+    category: 'cli',
+    techStack: {
+      language: 'TypeScript',
+      framework: 'Commander',
+      runtime: 'Node.js',
+      packageManager: 'npm',
+      bundler: 'none'
+    },
+    features: ['ui', 'docs'],
+    ciProvider: 'github',
+    includeTests: true,
+    includeDocker: false,
+    includeLinting: true,
+    githubWorkflows: ['ci', 'release'],
+    githubTemplates: ['bug_report', 'feature_request'],
+    githubCommunity: ['contributing', 'security'],
+    githubCodeowners: false,
+    ideConfig: ['vscode'],
+    version: '1.0.0',
+    securityBaseline: ['no-unsafe-exec', 'input-sanitization'],
+    failureMap: ['binary-size-bloat', 'cross-platform-path-issues'],
+    evolutionPath: ['native-binary-compilation', 'plugin-system-architecture']
+  },
+  {
+    id: 'ts-library-pro',
+    name: 'TypeScript Library Pro',
+    description: 'Modern TypeScript library with dual ESM/CJS support and automated publishing',
+    category: 'library',
+    techStack: {
+      language: 'TypeScript',
+      framework: 'NPM',
+      runtime: 'Node.js',
+      packageManager: 'npm',
+      bundler: 'vite'
+    },
+    features: ['docs'],
+    ciProvider: 'github',
+    includeTests: true,
+    includeDocker: false,
+    includeLinting: true,
+    githubWorkflows: ['ci', 'release', 'security'],
+    githubTemplates: ['bug_report'],
+    githubCommunity: ['contributing', 'code_of_conduct', 'security'],
+    githubCodeowners: true,
+    ideConfig: ['vscode', 'editorconfig'],
+    version: '1.0.0',
+    securityBaseline: ['supply-chain-security', 'audit-logging'],
+    failureMap: ['esm-cjs-compatibility', 'tree-shaking-issues'],
+    evolutionPath: ['monorepo-migration', 'platform-specific-optimizations']
   }
   // Add more blueprints as needed
 ];

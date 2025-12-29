@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RepoConfig, FileNode, FileType } from '../types';
+import { BlueprintEngine } from './blueprintEngine';
+import { performanceMonitor } from './performanceMonitor';
 
 const API_KEY_STORAGE_KEY = 'repogen_gemini_api_key';
 
@@ -35,9 +37,10 @@ export const detectStack = async (codeSnippet: string): Promise<DetectionResult>
     };
   }
 
+  const endMetric = performanceMonitor.start('detectStack');
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Analyze this code snippet and determine:
 1. Primary programming language
@@ -56,6 +59,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
 
     try {
       const parsed = JSON.parse(text);
+      endMetric(true);
       return {
         language: parsed.language || 'Unknown',
         framework: parsed.framework || 'Unknown',
@@ -63,6 +67,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
         confidence: parsed.confidence || 50
       };
     } catch {
+      endMetric(false);
       // Fallback if JSON parsing fails
       return {
         language: 'TypeScript',
@@ -72,6 +77,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       };
     }
   } catch (error) {
+    endMetric(false);
     console.error('AI detection failed:', error);
     return {
       language: 'TypeScript',
@@ -83,6 +89,12 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
 };
 
 export const generateFileTree = async (config: RepoConfig, rawInput: string): Promise<FileNode[]> => {
+  const blueprint = BlueprintEngine.getBlueprint(config.blueprintId);
+  if (!blueprint) {
+    console.error('Invalid blueprint:', config.blueprintId);
+    return [];
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) {
     // Return mock file tree if no API key
@@ -118,17 +130,18 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
     ];
   }
 
+  const endMetric = performanceMonitor.start('generateFileTree');
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
 
-    const prompt = `Generate a complete file structure for a ${config.language} ${config.framework} ${config.projectType} project.
+    const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
 
 Project details:
-- Language: ${config.language}
-- Framework: ${config.framework}
-- Project Type: ${config.projectType}
-- Use TypeScript: ${config.useTypeScript}
+- Language: ${blueprint.techStack.language}
+- Framework: ${blueprint.techStack.framework}
+- Project Type: ${blueprint.category}
+- Use TypeScript: ${blueprint.techStack.language === 'TypeScript'}
 - Blueprint: ${config.blueprintId}
 
 User input: ${rawInput}
@@ -153,8 +166,10 @@ Include essential files like package.json, README.md, and basic source files. Ma
 
     try {
       const parsed = JSON.parse(text);
+      endMetric(true);
       return parsed;
     } catch {
+      endMetric(false);
       // Fallback to mock data
       return [
         {
@@ -174,6 +189,7 @@ Include essential files like package.json, README.md, and basic source files. Ma
       ];
     }
   } catch (error) {
+    endMetric(false);
     console.error('File tree generation failed:', error);
     return [];
   }
@@ -186,9 +202,10 @@ export const refactorCode = async (code: string, instruction: string, filename: 
     return code;
   }
 
+  const endMetric = performanceMonitor.start('refactorCode');
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
 
     const prompt = `Refactor the following code according to this instruction: "${instruction}"
 
@@ -202,8 +219,10 @@ Return only the refactored code, no explanations or markdown.`;
     const response = await result.response;
     const text = response.text();
 
+    endMetric(true);
     return text.trim();
   } catch (error) {
+    endMetric(false);
     console.error('Code refactoring failed:', error);
     return code;
   }

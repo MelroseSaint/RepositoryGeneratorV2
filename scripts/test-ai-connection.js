@@ -22,9 +22,9 @@ async function testConnection() {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        console.log('📡 Sending test prompt to Gemini...');
+        console.log('� Testing with model: gemini-1.5-flash');
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent('Hello! Are you working? Reply with "Yes, I am working!"');
         const response = result.response;
         const text = response.text();

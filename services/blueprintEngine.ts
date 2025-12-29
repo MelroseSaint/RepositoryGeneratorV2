@@ -82,6 +82,19 @@ export class BlueprintEngine {
         '@types/express': '4.17.0',
         '@types/node': '20.0.0'
       };
+    } else if (blueprint.techStack.framework === 'Commander') {
+      runtimeRequirements.dependencies = {
+        'commander': '11.0.0',
+        'chalk': '5.3.0',
+        'typescript': '5.0.0',
+        '@types/node': '20.0.0'
+      };
+    } else if (blueprint.techStack.framework === 'NPM') {
+      runtimeRequirements.dependencies = {
+        'typescript': '5.0.0',
+        'tslib': '2.6.0',
+        'vite': '5.0.0'
+      };
     }
 
     // Define protected files (AI cannot modify)

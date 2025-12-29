@@ -260,7 +260,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();
@@ -399,7 +399,7 @@ Include essential files like package.json, README.md, and basic source files. Ma
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();
@@ -486,7 +486,7 @@ Return only the refactored code, no explanations or markdown.`;
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();

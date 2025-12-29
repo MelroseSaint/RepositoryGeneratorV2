@@ -26,3 +26,13 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Initialize dynamic model discovery
+(async () => {
+  try {
+    await populateAvailableModels();
+    console.log('🎉 Dynamic model discovery initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize dynamic model discovery:', error);
+  }
+})();

@@ -293,6 +293,31 @@ export const INITIAL_CONFIG: RepoConfig = {
   auditLogs: []
 };
 
+export enum AIProvider {
+  OPENAI = 'openai',
+  ANTHROPIC = 'anthropic',
+  GOOGLE = 'google'
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: AIProvider;
+  contextWindow: number;
+  supportsFunctionCalling: boolean;
+  supportsVision: boolean;
+  maxTokens: number;
+}
+
+export interface AIConfig {
+  selectedProvider: AIProvider;
+  providers: Record<AIProvider, {
+    provider: AIProvider;
+    apiKey: string;
+    models: AIModel[];
+  }>;
+}
+
 export interface GenerationLog {
   timestamp: string;
   level: 'info' | 'warn' | 'success';

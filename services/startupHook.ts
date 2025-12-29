@@ -1,5 +1,5 @@
 import { AIProvider } from '../types';
-import { addAPIKey, getPrimaryKey } from './modelRegistry';
+import { addAPIKey, getPrimaryKey, loadFromEnvironment } from './modelRegistry';
 import { populateAvailableModels } from './modelDiscovery';
 import { healthCheckAllProviders } from './enhancedAPICaller';
 
@@ -56,7 +56,7 @@ export async function initializeModelRegistry(): Promise<void> {
   
   try {
     // Step 1: Load API keys from environment
-    loadAPIKeysFromEnvironment();
+    loadFromEnvironment();
     
     // Step 2: Populate available models for all keys
     await populateAvailableModels();

@@ -1,10 +1,89 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { RepoConfig, FileNode, FileType } from '../types';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { RepoConfig, FileNode, FileType, AIProvider, AIConfig, AIModel } from '../types';
 import { BlueprintEngine } from './blueprintEngine';
 import { performanceMonitor } from './performanceMonitor';
 
+const AI_CONFIG_STORAGE_KEY = 'repogen_ai_config';
+
+// Legacy storage key for backward compatibility
 const API_KEY_STORAGE_KEY = 'repogen_gemini_api_key';
 
+// Default AI models for each provider
+const DEFAULT_MODELS: Record<AIProvider, AIModel[]> = {
+  [AIProvider.OPENAI]: [
+    {
+      id: 'gpt-4o',
+      name: 'GPT-4o',
+      provider: AIProvider.OPENAI,
+      contextWindow: 128000,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 4096
+    },
+    {
+      id: 'gpt-4-turbo',
+      name: 'GPT-4 Turbo',
+      provider: AIProvider.OPENAI,
+      contextWindow: 128000,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 4096
+    },
+    {
+      id: 'gpt-3.5-turbo',
+      name: 'GPT-3.5 Turbo',
+      provider: AIProvider.OPENAI,
+      contextWindow: 16385,
+      supportsFunctionCalling: true,
+      supportsVision: false,
+      maxTokens: 4096
+    }
+  ],
+  [AIProvider.ANTHROPIC]: [
+    {
+      id: 'claude-3-5-sonnet-20241022',
+      name: 'Claude 3.5 Sonnet',
+      provider: AIProvider.ANTHROPIC,
+      contextWindow: 200000,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 4096
+    },
+    {
+      id: 'claude-3-haiku-20240307',
+      name: 'Claude 3 Haiku',
+      provider: AIProvider.ANTHROPIC,
+      contextWindow: 200000,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 4096
+    }
+  ],
+  [AIProvider.GOOGLE]: [
+    {
+      id: 'gemini-1.5-flash',
+      name: 'Gemini 1.5 Flash',
+      provider: AIProvider.GOOGLE,
+      contextWindow: 1048576,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 8192
+    },
+    {
+      id: 'gemini-1.5-pro',
+      name: 'Gemini 1.5 Pro',
+      provider: AIProvider.GOOGLE,
+      contextWindow: 2097152,
+      supportsFunctionCalling: true,
+      supportsVision: true,
+      maxTokens: 8192
+    }
+  ]
+};
+
+// Legacy functions for backward compatibility
 export const getApiKey = (): string | null => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem(API_KEY_STORAGE_KEY);
@@ -18,6 +97,106 @@ export const setApiKey = (key: string): void => {
   }
 };
 
+// New AI configuration management
+export const getAIConfig = (): AIConfig => {
+  if (typeof window === 'undefined') {
+    return {
+      selectedProvider: AIProvider.GOOGLE,
+      providers: {
+        [AIProvider.GOOGLE]: {
+          provider: AIProvider.GOOGLE,
+          apiKey: '',
+          models: DEFAULT_MODELS[AIProvider.GOOGLE]
+        },
+        [AIProvider.OPENAI]: {
+          provider: AIProvider.OPENAI,
+          apiKey: '',
+          models: DEFAULT_MODELS[AIProvider.OPENAI]
+        },
+        [AIProvider.ANTHROPIC]: {
+          provider: AIProvider.ANTHROPIC,
+          apiKey: '',
+          models: DEFAULT_MODELS[AIProvider.ANTHROPIC]
+        }
+      }
+    };
+  }
+
+  const stored = localStorage.getItem(AI_CONFIG_STORAGE_KEY);
+  if (stored) {
+    try {
+      const config = JSON.parse(stored) as AIConfig;
+      // Ensure all providers have models
+      Object.keys(config.providers).forEach(provider => {
+        const p = provider as AIProvider;
+        if (!config.providers[p].models || config.providers[p].models.length === 0) {
+          config.providers[p].models = DEFAULT_MODELS[p];
+        }
+      });
+      return config;
+    } catch {
+      // Fall back to default if parsing fails
+    }
+  }
+
+  // Check for legacy Gemini key and migrate
+  const legacyKey = getApiKey();
+  const defaultConfig: AIConfig = {
+    selectedProvider: legacyKey ? AIProvider.GOOGLE : AIProvider.GOOGLE,
+    providers: {
+      [AIProvider.GOOGLE]: {
+        provider: AIProvider.GOOGLE,
+        apiKey: legacyKey || '',
+        models: DEFAULT_MODELS[AIProvider.GOOGLE]
+      },
+      [AIProvider.OPENAI]: {
+        provider: AIProvider.OPENAI,
+        apiKey: '',
+        models: DEFAULT_MODELS[AIProvider.OPENAI]
+      },
+      [AIProvider.ANTHROPIC]: {
+        provider: AIProvider.ANTHROPIC,
+        apiKey: '',
+        models: DEFAULT_MODELS[AIProvider.ANTHROPIC]
+      }
+    }
+  };
+
+  // Save the default config
+  setAIConfig(defaultConfig);
+  return defaultConfig;
+};
+
+export const setAIConfig = (config: AIConfig): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(AI_CONFIG_STORAGE_KEY, JSON.stringify(config));
+  }
+};
+
+export const getSelectedProvider = (): AIProvider => {
+  return getAIConfig().selectedProvider;
+};
+
+export const setSelectedProvider = (provider: AIProvider): void => {
+  const config = getAIConfig();
+  config.selectedProvider = provider;
+  setAIConfig(config);
+};
+
+export const getProviderApiKey = (provider: AIProvider): string => {
+  return getAIConfig().providers[provider].apiKey;
+};
+
+export const setProviderApiKey = (provider: AIProvider, apiKey: string): void => {
+  const config = getAIConfig();
+  config.providers[provider].apiKey = apiKey;
+  setAIConfig(config);
+};
+
+export const getAvailableModels = (provider: AIProvider): AIModel[] => {
+  return getAIConfig().providers[provider].models;
+};
+
 export interface DetectionResult {
   language: string;
   framework: string;
@@ -26,7 +205,10 @@ export interface DetectionResult {
 }
 
 export const detectStack = async (codeSnippet: string): Promise<DetectionResult> => {
-  const apiKey = getApiKey();
+  const aiConfig = getAIConfig();
+  const provider = aiConfig.selectedProvider;
+  const apiKey = getProviderApiKey(provider);
+
   if (!apiKey) {
     // Return mock data if no API key
     return {
@@ -39,9 +221,6 @@ export const detectStack = async (codeSnippet: string): Promise<DetectionResult>
 
   const endMetric = performanceMonitor.start('detectStack');
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
     const prompt = `Analyze this code snippet and determine:
 1. Primary programming language
 2. Framework/library being used
@@ -53,12 +232,44 @@ ${codeSnippet}
 
 Return only a JSON object with keys: language, framework, suggestedProjectType, confidence`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    let response: string;
+
+    switch (provider) {
+      case AIProvider.OPENAI: {
+        const client = new OpenAI({ apiKey });
+        const completion = await client.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 1000
+        });
+        response = completion.choices[0]?.message?.content || '';
+        break;
+      }
+
+      case AIProvider.ANTHROPIC: {
+        const client = new Anthropic({ apiKey });
+        const message = await client.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        response = message.content[0]?.type === 'text' ? message.content[0].text : '';
+        break;
+      }
+
+      case AIProvider.GOOGLE:
+      default: {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const geminiResponse = await result.response;
+        response = geminiResponse.text();
+        break;
+      }
+    }
 
     try {
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(response);
       endMetric(true);
       return {
         language: parsed.language || 'Unknown',
@@ -95,7 +306,10 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
     return [];
   }
 
-  const apiKey = getApiKey();
+  const aiConfig = getAIConfig();
+  const provider = aiConfig.selectedProvider;
+  const apiKey = getProviderApiKey(provider);
+
   if (!apiKey) {
     // Return mock file tree if no API key
     return [
@@ -132,9 +346,6 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
 
   const endMetric = performanceMonitor.start('generateFileTree');
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
-
     const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
 
 Project details:
@@ -160,12 +371,44 @@ Generate a JSON array of file objects with this structure:
 
 Include essential files like package.json, README.md, and basic source files. Make the content realistic and functional.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    let response: string;
+
+    switch (provider) {
+      case AIProvider.OPENAI: {
+        const client = new OpenAI({ apiKey });
+        const completion = await client.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 4000
+        });
+        response = completion.choices[0]?.message?.content || '';
+        break;
+      }
+
+      case AIProvider.ANTHROPIC: {
+        const client = new Anthropic({ apiKey });
+        const message = await client.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4000,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        response = message.content[0]?.type === 'text' ? message.content[0].text : '';
+        break;
+      }
+
+      case AIProvider.GOOGLE:
+      default: {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const geminiResponse = await result.response;
+        response = geminiResponse.text();
+        break;
+      }
+    }
 
     try {
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(response);
       endMetric(true);
       return parsed;
     } catch {
@@ -196,7 +439,10 @@ Include essential files like package.json, README.md, and basic source files. Ma
 };
 
 export const refactorCode = async (code: string, instruction: string, filename: string): Promise<string> => {
-  const apiKey = getApiKey();
+  const aiConfig = getAIConfig();
+  const provider = aiConfig.selectedProvider;
+  const apiKey = getProviderApiKey(provider);
+
   if (!apiKey) {
     // Return original code if no API key
     return code;
@@ -204,9 +450,6 @@ export const refactorCode = async (code: string, instruction: string, filename: 
 
   const endMetric = performanceMonitor.start('refactorCode');
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
-
     const prompt = `Refactor the following code according to this instruction: "${instruction}"
 
 File: ${filename}
@@ -215,12 +458,44 @@ ${code}
 
 Return only the refactored code, no explanations or markdown.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    let response: string;
+
+    switch (provider) {
+      case AIProvider.OPENAI: {
+        const client = new OpenAI({ apiKey });
+        const completion = await client.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 4000
+        });
+        response = completion.choices[0]?.message?.content || code;
+        break;
+      }
+
+      case AIProvider.ANTHROPIC: {
+        const client = new Anthropic({ apiKey });
+        const message = await client.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4000,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        response = message.content[0]?.type === 'text' ? message.content[0].text : code;
+        break;
+      }
+
+      case AIProvider.GOOGLE:
+      default: {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const geminiResponse = await result.response;
+        response = geminiResponse.text();
+        break;
+      }
+    }
 
     endMetric(true);
-    return text.trim();
+    return response.trim();
   } catch (error) {
     endMetric(false);
     console.error('Code refactoring failed:', error);

@@ -28,7 +28,12 @@ root.render(
   </React.StrictMode>
 );
 
-// Initialize the model registry system (temporarily disabled)
+// Note: Model registry system is available but not initialized by default
+// The existing aiService.ts works correctly with current SDK versions
+// Model registry can be enabled later for advanced features
+// 
+// To enable model registry initialization:
+// Uncomment the following code:
 // (async () => {
 //   try {
 //     await ModelRegistry.initialize();

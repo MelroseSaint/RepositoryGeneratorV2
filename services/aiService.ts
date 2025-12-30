@@ -63,7 +63,7 @@ const DEFAULT_MODELS: Record<AIProvider, AIModel[]> = {
   ],
   [AIProvider.GOOGLE]: [
 {
-      id: 'gemini-1.5-flash-latest',
+      id: 'gemini-1.5-flash',
       name: 'Gemini 1.5 Flash',
       provider: AIProvider.GOOGLE,
       contextWindow: 1048576,
@@ -72,7 +72,7 @@ const DEFAULT_MODELS: Record<AIProvider, AIModel[]> = {
       maxTokens: 8192
     },
     {
-      id: 'gemini-1.5-pro-latest',
+      id: 'gemini-1.5-pro',
       name: 'Gemini 1.5 Pro',
       provider: AIProvider.GOOGLE,
       contextWindow: 2097152,
@@ -260,7 +260,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
 case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();

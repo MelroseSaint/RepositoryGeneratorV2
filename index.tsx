@@ -28,12 +28,12 @@ root.render(
   </React.StrictMode>
 );
 
-// Initialize the model registry system
-(async () => {
-  try {
-    await ModelRegistry.initialize();
-    console.log('🎉 Model Registry system initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize Model Registry:', error);
-  }
-})();
+// Initialize the model registry system (temporarily disabled)
+// (async () => {
+//   try {
+//     await ModelRegistry.initialize();
+//     console.log('🎉 Model Registry system initialized successfully');
+//   } catch (error) {
+//     console.error('❌ Failed to initialize Model Registry:', error);
+//   }
+// })();

@@ -328,6 +328,38 @@ To verify your API key is working correctly, run:
 node scripts/test-ai-connection.js
 ```
 
+### Firebase Setup (Optional)
+
+RepoGen V2 now includes Firebase integration for authentication and data storage. To enable Firebase features:
+
+1. **Create a Firebase project**:
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Click "Add project" and follow the setup steps
+
+2. **Add a web app to your Firebase project**:
+   - In your Firebase project, click the "</>" icon to add a web app
+   - Register your app with a name (e.g., "RepoGen V2")
+   - Copy the Firebase configuration object
+
+3. **Set up environment variables**:
+   - Copy `.env.example` to `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+   - Fill in the Firebase configuration values from your Firebase project
+
+4. **Enable authentication**:
+   - In Firebase Console, go to "Authentication" > "Sign-in method"
+   - Enable "Google" as a sign-in provider
+   - Configure the provider with your app's domain
+
+5. **Set up Firestore database**:
+   - In Firebase Console, go to "Firestore Database"
+   - Click "Create database" and start in test mode (for development)
+   - Set the location to match your project needs
+
+**Note:** Firebase features are optional. The app will work without Firebase configuration, but authentication and repo history features will be disabled.
+
 ## Usage
 
 1. **Upload**: Drag & drop your files or paste your code.

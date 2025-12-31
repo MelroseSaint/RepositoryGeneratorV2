@@ -1,9 +1,9 @@
 // Example usage of the Enhanced Model Registry System
 // This file demonstrates how to integrate the system into your application
 
-import { ModelRegistry } from '../services/modelRegistrySystem';
-import { AIProvider } from '../types';
-import { ErrorCategory } from '../services/errorHandler';
+import { ModelRegistry } from '../src/services/modelRegistrySystem';
+import { AIProvider } from '../src/types';
+import { ErrorCategory } from '../src/services/errorHandler';
 
 // 1. Initialize the system at startup
 async function initializeApplication() {

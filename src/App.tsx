@@ -10,6 +10,7 @@ import { ApiKeyInput } from './components/ApiKeyInput';
 import { Box, Terminal, AlertTriangle, User, LogOut, LogIn } from 'lucide-react';
 import {
   auth,
+  db,
   signInWithGoogle,
   signOutUser,
   onAuthStateChange,

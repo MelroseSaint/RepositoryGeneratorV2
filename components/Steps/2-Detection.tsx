@@ -12,15 +12,25 @@ interface StepDetectionProps {
 export const StepDetection: React.FC<StepDetectionProps> = ({ rawInput, onNext, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<DetectionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    detectStack(rawInput).then(res => {
-      if (isMounted) {
-        setResult(res);
-        setLoading(false);
-      }
-    });
+    detectStack(rawInput)
+      .then(res => {
+        if (isMounted) {
+          setResult(res);
+          setLoading(false);
+          setError(null);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setLoading(false);
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setError(errorMessage);
+        }
+      });
     return () => { isMounted = false; };
   }, [rawInput]);
 
@@ -33,6 +43,59 @@ export const StepDetection: React.FC<StepDetectionProps> = ({ rawInput, onNext, 
         </div>
         <h3 className="mt-8 text-xl font-medium text-white">Analyzing Code Structure...</h3>
         <p className="text-gray-500 mt-2">Detecting languages, frameworks, and dependencies</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto animate-in slide-in-from-right-8 duration-500">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-white">AI Service Error</h2>
+          <p className="text-gray-400 mt-2">We encountered an issue with the AI service.</p>
+        </div>
+
+        <div className="bg-red-950/30 border border-red-800/50 rounded-xl p-8 shadow-2xl">
+          <div className="flex items-start space-x-4">
+            <AlertTriangle className="w-8 h-8 text-red-500 flex-shrink-0" />
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-2">Quota Exceeded</h3>
+              <p className="text-gray-300 mb-4">{error}</p>
+              <div className="bg-dark-bg border border-dark-border rounded-lg p-4 mt-4">
+                <h4 className="text-sm font-medium text-white mb-2">Suggested Actions:</h4>
+                <ul className="space-y-2 text-sm text-gray-400">
+                  <li className="flex items-start">
+                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                    Wait a few minutes and try again
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                    Switch to a different AI provider (OpenAI, Anthropic, or Google) in settings
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                    Check your API key quota limits at the provider's dashboard
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex justify-between items-center">
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-white font-medium px-4 py-2"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-brand-900/20 flex items-center transition-transform transform hover:-translate-y-0.5"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

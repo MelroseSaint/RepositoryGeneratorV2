@@ -260,7 +260,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
         const result = await model.generateContent(prompt);
         const googleResponse = await result.response;
         response = googleResponse.text();
@@ -290,6 +290,14 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
   } catch (error) {
     endMetric(false);
     console.error('AI detection failed:', error);
+    
+    // Check if it's a quota/rate limit error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('quota') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+      console.warn('⚠️ AI quota or rate limit exceeded. Using fallback detection.');
+      throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
+    }
+    
     return {
       language: 'TypeScript',
       framework: 'React',
@@ -434,6 +442,14 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
   } catch (error) {
     endMetric(false);
     console.error('File tree generation failed:', error);
+    
+    // Check if it's a quota/rate limit error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('quota') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+      console.warn('⚠️ AI quota or rate limit exceeded for file tree generation.');
+      throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
+    }
+    
     return [];
   }
 };
@@ -499,6 +515,14 @@ Return only the refactored code, no explanations or markdown.`;
   } catch (error) {
     endMetric(false);
     console.error('Code refactoring failed:', error);
+    
+    // Check if it's a quota/rate limit error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('quota') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+      console.warn('⚠️ AI quota or rate limit exceeded for code refactoring.');
+      throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
+    }
+    
     return code;
   }
 };

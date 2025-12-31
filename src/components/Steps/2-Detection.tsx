@@ -48,10 +48,56 @@ export const StepDetection: React.FC<StepDetectionProps> = ({ rawInput, onNext, 
   }
 
   if (error) {
+    const getErrorTitle = () => {
+      if (error.includes('timeout')) return 'AI Service Timeout';
+      if (error.includes('Invalid API key')) return 'Invalid API Key';
+      if (error.includes('quota')) return 'Quota Exceeded';
+      if (error.includes('model not found')) return 'AI Model Not Found';
+      return 'AI Service Error';
+    };
+
+    const getErrorSuggestions = () => {
+      if (error.includes('timeout')) {
+        return [
+          'Check your internet connection',
+          'Try again with a more stable connection',
+          'The AI service may be experiencing high load'
+        ];
+      }
+      if (error.includes('Invalid API key')) {
+        return [
+          'Check your API key in the settings',
+          'Make sure the key is valid and active',
+          'Verify you have selected the correct provider'
+        ];
+      }
+      if (error.includes('quota')) {
+        return [
+          'Wait a few minutes and try again',
+          'Switch to a different AI provider in settings',
+          'Check your API key quota limits at the provider\'s dashboard'
+        ];
+      }
+      if (error.includes('model not found')) {
+        return [
+          'Check the selected model configuration',
+          'Try selecting a different AI model',
+          'Verify your provider supports the selected model'
+        ];
+      }
+      return [
+        'Wait a moment and try again',
+        'Check your internet connection',
+        'Try using a different AI provider'
+      ];
+    };
+
+    const suggestions = getErrorSuggestions();
+
     return (
       <div className="max-w-3xl mx-auto animate-in slide-in-from-right-8 duration-500">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-white">AI Service Error</h2>
+          <h2 className="text-3xl font-bold text-white">{getErrorTitle()}</h2>
           <p className="text-gray-400 mt-2">We encountered an issue with the AI service.</p>
         </div>
 
@@ -59,23 +105,17 @@ export const StepDetection: React.FC<StepDetectionProps> = ({ rawInput, onNext, 
           <div className="flex items-start space-x-4">
             <AlertTriangle className="w-8 h-8 text-red-500 flex-shrink-0" />
             <div>
-              <h3 className="text-lg font-semibold text-white mb-2">Quota Exceeded</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">{getErrorTitle()}</h3>
               <p className="text-gray-300 mb-4">{error}</p>
               <div className="bg-dark-bg border border-dark-border rounded-lg p-4 mt-4">
                 <h4 className="text-sm font-medium text-white mb-2">Suggested Actions:</h4>
                 <ul className="space-y-2 text-sm text-gray-400">
-                  <li className="flex items-start">
-                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
-                    Wait a few minutes and try again
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
-                    Switch to a different AI provider (OpenAI, Anthropic, or Google) in settings
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
-                    Check your API key quota limits at the provider's dashboard
-                  </li>
+                  {suggestions.map((suggestion, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="w-1.5 h-1.5 bg-brand-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                      {suggestion}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

@@ -21,28 +21,39 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
   const [refactorPrompt, setRefactorPrompt] = useState('');
   const [showRefactorInput, setShowRefactorInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const loadTree = async () => {
       setLoading(true);
-      const tree = await generateFileTree(config, rawInput);
-      if (isMounted) {
-        setFiles(tree);
-        onFilesGenerated(tree);
-        // Select first file by default
-        const findFirstFile = (nodes: FileNode[]): FileNode | null => {
-          for (const node of nodes) {
-            if (node.type === FileType.FILE) return node;
-            if (node.children) {
-              const found = findFirstFile(node.children);
-              if (found) return found;
+      setLoadError(null);
+      try {
+        const tree = await generateFileTree(config, rawInput);
+        if (isMounted) {
+          setFiles(tree);
+          onFilesGenerated(tree);
+          // Select first file by default
+          const findFirstFile = (nodes: FileNode[]): FileNode | null => {
+            for (const node of nodes) {
+              if (node.type === FileType.FILE) return node;
+              if (node.children) {
+                const found = findFirstFile(node.children);
+                if (found) return found;
+              }
             }
-          }
-          return null;
-        };
-        setSelectedFile(findFirstFile(tree));
-        setLoading(false);
+            return null;
+          };
+          setSelectedFile(findFirstFile(tree));
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setLoadError(errorMessage);
+          setLoading(false);
+          setError(null);
+        }
       }
     };
     loadTree();
@@ -152,6 +163,11 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
         <div className="w-64 border-r border-dark-border bg-dark-bg/30 overflow-y-auto p-2">
           {loading ? (
             <div className="text-gray-500 text-sm animate-pulse p-4">Generating files...</div>
+          ) : loadError ? (
+            <div className="text-red-400 text-sm p-4">
+              <AlertTriangle className="w-4 h-4 mb-2 inline-block mr-2" />
+              {loadError}
+            </div>
           ) : (
             renderTree(files)
           )}
@@ -159,7 +175,20 @@ export const StepPreview: React.FC<StepPreviewProps> = ({ config, rawInput, onNe
 
         {/* Editor Area */}
         <div className="flex-1 flex flex-col bg-[#1e1e1e]">
-          {selectedFile ? (
+          {loadError ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center max-w-md">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">File Tree Generation Failed</h3>
+                <p className="text-gray-400 text-sm mb-4">{loadError}</p>
+                <div className="text-xs text-gray-500">
+                  {loadError.includes('timeout') && 'The AI service took too long to respond. Please try again.'}
+                  {loadError.includes('quota') && 'You have exceeded your AI quota. Please check your limits.'}
+                  {loadError.includes('API key') && 'Please check your API key configuration in settings.'}
+                </div>
+              </div>
+            </div>
+          ) : selectedFile ? (
             <>
               <div className="flex items-center justify-between px-4 py-2 border-b border-dark-border bg-dark-bg/50">
                 <span className="text-sm font-mono text-gray-300">{selectedFile.name}</span>

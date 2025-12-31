@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { BlueprintEngine } from '../services/blueprintEngine';
-import { AppStep, INITIAL_CONFIG } from '../types';
+import { BlueprintEngine } from '../src/services/blueprintEngine';
+import { AppStep, INITIAL_CONFIG } from '../src/types';
 
 describe('BlueprintEngine', () => {
     it('should return all blueprints', () => {

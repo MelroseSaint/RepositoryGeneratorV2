@@ -132,6 +132,25 @@ export interface RepoConfig {
   blueprintId: string; // Selected blueprint
   contract: RepositoryContract; // Generated from blueprint
   auditLogs: AuditLog[]; // Track all actions
+  
+  // Configuration properties for UI (extended from Blueprint)
+  projectType?: string;
+  language?: string;
+  framework?: string;
+  packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  bundler?: 'vite' | 'webpack' | 'none';
+  useTypeScript?: boolean;
+  useMonorepo?: boolean;
+  ideConfig?: string[];
+  features?: string[];
+  includeLinting?: boolean;
+  includeTests?: boolean;
+  ciProvider?: 'github' | 'gitlab' | 'none';
+  includeDocker?: boolean;
+  githubWorkflows?: string[];
+  githubTemplates?: string[];
+  githubCommunity?: string[];
+  githubCodeowners?: boolean;
 }
 
 export const BLUEPRINTS: Blueprint[] = [

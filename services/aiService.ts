@@ -219,17 +219,6 @@ export const detectStack = async (codeSnippet: string): Promise<DetectionResult>
     };
   }
 
-  // Temporarily skip Google provider due to SDK compatibility issues
-  if (provider === AIProvider.GOOGLE) {
-    console.warn('⚠️ Google AI provider temporarily disabled due to SDK compatibility');
-    return {
-      language: 'TypeScript',
-      framework: 'React',
-      suggestedProjectType: 'frontend',
-      confidence: 85
-    };
-  }
-
   const endMetric = performanceMonitor.start('detectStack');
   try {
     const prompt = `Analyze this code snippet and determine:
@@ -268,12 +257,13 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
         break;
       }
 
-case AIProvider.GOOGLE:
+      case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
+        const googleResponse = await result.response;
+        response = googleResponse.text();
         break;
       }
     }

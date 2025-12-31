@@ -30,7 +30,7 @@ async function exampleGeneration() {
   try {
     const result = await ModelRegistry.generate(
       AIProvider.GOOGLE,  // Preferred provider
-      'gemini-1.5-pro',  // Preferred model (optional)
+      'gemini-pro-latest',  // Preferred model (optional)
       {
         prompt: 'Explain the benefits of multi-model AI systems.',
         maxTokens: 1000,

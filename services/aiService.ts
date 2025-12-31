@@ -62,9 +62,9 @@ const DEFAULT_MODELS: Record<AIProvider, AIModel[]> = {
     }
   ],
   [AIProvider.GOOGLE]: [
-{
-      id: 'gemini-1.5-flash',
-      name: 'Gemini 1.5 Flash',
+    {
+      id: 'gemini-flash-latest',
+      name: 'Gemini Flash',
       provider: AIProvider.GOOGLE,
       contextWindow: 1048576,
       supportsFunctionCalling: true,
@@ -72,8 +72,8 @@ const DEFAULT_MODELS: Record<AIProvider, AIModel[]> = {
       maxTokens: 8192
     },
     {
-      id: 'gemini-1.5-pro',
-      name: 'Gemini 1.5 Pro',
+      id: 'gemini-pro-latest',
+      name: 'Gemini Pro',
       provider: AIProvider.GOOGLE,
       contextWindow: 2097152,
       supportsFunctionCalling: true,
@@ -260,7 +260,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
         const result = await model.generateContent(prompt);
         const googleResponse = await result.response;
         response = googleResponse.text();
@@ -346,66 +346,66 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
 
   const endMetric = performanceMonitor.start('generateFileTree');
   try {
-    const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
+  const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
 
-Project details:
-- Language: ${blueprint.techStack.language}
-- Framework: ${blueprint.techStack.framework}
-- Project Type: ${blueprint.category}
-- Use TypeScript: ${blueprint.techStack.language === 'TypeScript'}
-- Blueprint: ${config.blueprintId}
+  Project details:
+  - Language: ${blueprint.techStack.language}
+  - Framework: ${blueprint.techStack.framework}
+  - Project Type: ${blueprint.category}
+  - Use TypeScript: ${blueprint.techStack.language === 'TypeScript'}
+  - Blueprint: ${config.blueprintId}
 
-User input: ${rawInput}
+  User input: ${rawInput}
 
-Generate a JSON array of file objects with this structure:
-[
+  Generate a JSON array of file objects with this structure:
+  [
   {
-    "id": "unique_id",
-    "name": "filename.ext",
-    "type": "file" or "folder",
-    "content": "file content as string (for files only)",
-    "language": "typescript|javascript|python|etc",
-    "children": [...] (for folders only)
+  "id": "unique_id",
+  "name": "filename.ext",
+  "type": "file" or "folder",
+  "content": "file content as string (for files only)",
+  "language": "typescript|javascript|python|etc",
+  "children": [...] (for folders only)
   }
-]
+  ]
 
-Include essential files like package.json, README.md, and basic source files. Make the content realistic and functional.`;
+  Include essential files like package.json, README.md, and basic source files. Make the content realistic and functional.`;
 
-    let response: string;
+  let response: string;
 
-    switch (provider) {
-      case AIProvider.OPENAI: {
-        const client = new OpenAI({ apiKey });
-        const completion = await client.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 4000
-        });
-        response = completion.choices[0]?.message?.content || '';
-        break;
-      }
-
-      case AIProvider.ANTHROPIC: {
-        const client = new Anthropic({ apiKey });
-        const message = await client.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }]
-        });
-        response = message.content[0]?.type === 'text' ? message.content[0].text : '';
-        break;
-      }
-
-      case AIProvider.GOOGLE:
-      default: {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const result = await model.generateContent(prompt);
-        const geminiResponse = await result.response;
-        response = geminiResponse.text();
-        break;
-      }
+  switch (provider) {
+    case AIProvider.OPENAI: {
+      const client = new OpenAI({ apiKey });
+      const completion = await client.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4000
+      });
+      response = completion.choices[0]?.message?.content || '';
+      break;
     }
+
+    case AIProvider.ANTHROPIC: {
+      const client = new Anthropic({ apiKey });
+      const message = await client.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      response = message.content[0]?.type === 'text' ? message.content[0].text : '';
+      break;
+    }
+
+    case AIProvider.GOOGLE:
+    default: {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+      const result = await model.generateContent(prompt);
+      const geminiResponse = await result.response;
+      response = geminiResponse.text();
+      break;
+    }
+  }
 
     try {
       const parsed = JSON.parse(response);
@@ -486,7 +486,7 @@ Return only the refactored code, no explanations or markdown.`;
       case AIProvider.GOOGLE:
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
         const result = await model.generateContent(prompt);
         const geminiResponse = await result.response;
         response = geminiResponse.text();

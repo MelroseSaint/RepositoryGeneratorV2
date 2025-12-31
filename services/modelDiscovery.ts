@@ -10,26 +10,26 @@ async function fetchGoogleModels(apiKey: string): Promise<string[]> {
     // Google Generative AI SDK doesn't have listModels method
     // Return known working models for now
     const knownModels = [
-      'gemini-1.5-pro',
-      'gemini-1.5-flash',
-      'gemini-1.0-pro',
-      'gemini-pro',
-      'gemini-pro-vision'
+      'gemini-pro-latest',
+      'gemini-flash-latest',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash'
     ];
-    
+
     // For now, return known working models without testing
     // Testing can cause rate limits and errors during initialization
     const workingModels = [
-      'gemini-1.5-pro',
-      'gemini-1.5-flash',
-      'gemini-1.0-pro'
+      'gemini-pro-latest',
+      'gemini-flash-latest',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash'
     ];
-    
+
     return workingModels;
   } catch (error) {
     console.error('Failed to fetch Google models:', error);
     // Return fallback models
-    return ['gemini-1.5-pro', 'gemini-1.5-flash'];
+    return ['gemini-pro-latest', 'gemini-flash-latest'];
   }
 }
 

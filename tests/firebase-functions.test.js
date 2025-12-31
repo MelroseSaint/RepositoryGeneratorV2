@@ -8,7 +8,7 @@ import {
   onAuthStateChange,
   auth,
   db
-} from '../firebase';
+} from '../src/firebase';
 
 describe('Firebase Functions - Basic Tests', () => {
   it('should export all required Firebase functions', () => {

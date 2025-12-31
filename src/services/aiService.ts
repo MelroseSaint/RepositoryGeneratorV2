@@ -204,12 +204,23 @@ export interface DetectionResult {
   confidence: number;
 }
 
+// Helper function to add timeout to promises
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${operation} timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
 export const detectStack = async (codeSnippet: string): Promise<DetectionResult> => {
   const aiConfig = getAIConfig();
   const provider = aiConfig.selectedProvider;
   const apiKey = getProviderApiKey(provider);
 
   if (!apiKey) {
+    console.log('[detectStack] No API key configured, using fallback detection');
     // Return mock data if no API key
     return {
       language: 'TypeScript',
@@ -237,22 +248,30 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
     switch (provider) {
       case AIProvider.OPENAI: {
         const client = new OpenAI({ apiKey });
-        const completion = await client.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1000
-        });
+        const completion = await withTimeout(
+          client.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 1000
+          }),
+          30000,
+          'OpenAI API call'
+        );
         response = completion.choices[0]?.message?.content || '';
         break;
       }
 
       case AIProvider.ANTHROPIC: {
         const client = new Anthropic({ apiKey });
-        const message = await client.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        });
+        const message = await withTimeout(
+          client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1000,
+            messages: [{ role: 'user', content: prompt }]
+          }),
+          30000,
+          'Anthropic API call'
+        );
         response = message.content[0]?.type === 'text' ? message.content[0].text : '';
         break;
       }
@@ -261,7 +280,11 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-        const result = await model.generateContent(prompt);
+        const result = await withTimeout(
+          model.generateContent(prompt),
+          30000,
+          'Google Gemini API call'
+        );
         const googleResponse = await result.response;
         response = googleResponse.text();
         break;
@@ -278,6 +301,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
         confidence: parsed.confidence || 50
       };
     } catch {
+      console.warn('[detectStack] JSON parsing failed, using fallback');
       endMetric(false);
       // Fallback if JSON parsing fails
       return {
@@ -289,7 +313,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
     }
   } catch (error) {
     endMetric(false);
-    console.error('AI detection failed:', error);
+    console.error('[detectStack] AI detection failed:', error);
     
     // Check if it's a quota/rate limit error
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -298,6 +322,22 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
       throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
     }
     
+    if (errorMessage.includes('timed out')) {
+      console.warn('⚠️ AI API call timed out. Using fallback detection.');
+      throw new Error('AI service timeout. Please check your network connection or try again.');
+    }
+
+    if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('API key')) {
+      console.warn('⚠️ Invalid API key. Using fallback detection.');
+      throw new Error('Invalid API key. Please check your AI provider API key in settings.');
+    }
+
+    if (errorMessage.includes('404')) {
+      console.warn('⚠️ Model not found. Using fallback detection.');
+      throw new Error('AI model not found. Please check the selected model configuration.');
+    }
+    
+    console.warn('[detectStack] Unknown error, using fallback detection');
     return {
       language: 'TypeScript',
       framework: 'React',
@@ -310,7 +350,7 @@ Return only a JSON object with keys: language, framework, suggestedProjectType, 
 export const generateFileTree = async (config: RepoConfig, rawInput: string): Promise<FileNode[]> => {
   const blueprint = BlueprintEngine.getBlueprint(config.blueprintId);
   if (!blueprint) {
-    console.error('Invalid blueprint:', config.blueprintId);
+    console.error('[generateFileTree] Invalid blueprint:', config.blueprintId);
     return [];
   }
 
@@ -319,6 +359,7 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
   const apiKey = getProviderApiKey(provider);
 
   if (!apiKey) {
+    console.log('[generateFileTree] No API key configured, using fallback file tree');
     // Return mock file tree if no API key
     return [
       {
@@ -354,72 +395,85 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
 
   const endMetric = performanceMonitor.start('generateFileTree');
   try {
-  const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
+    const prompt = `Generate a complete file structure for a ${blueprint.techStack.language} ${blueprint.techStack.framework} ${blueprint.category} project.
 
-  Project details:
-  - Language: ${blueprint.techStack.language}
-  - Framework: ${blueprint.techStack.framework}
-  - Project Type: ${blueprint.category}
-  - Use TypeScript: ${blueprint.techStack.language === 'TypeScript'}
-  - Blueprint: ${config.blueprintId}
+    Project details:
+    - Language: ${blueprint.techStack.language}
+    - Framework: ${blueprint.techStack.framework}
+    - Project Type: ${blueprint.category}
+    - Use TypeScript: ${blueprint.techStack.language === 'TypeScript'}
+    - Blueprint: ${config.blueprintId}
 
-  User input: ${rawInput}
+    User input: ${rawInput}
 
-  Generate a JSON array of file objects with this structure:
-  [
-  {
-  "id": "unique_id",
-  "name": "filename.ext",
-  "type": "file" or "folder",
-  "content": "file content as string (for files only)",
-  "language": "typescript|javascript|python|etc",
-  "children": [...] (for folders only)
-  }
-  ]
-
-  Include essential files like package.json, README.md, and basic source files. Make the content realistic and functional.`;
-
-  let response: string;
-
-  switch (provider) {
-    case AIProvider.OPENAI: {
-      const client = new OpenAI({ apiKey });
-      const completion = await client.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4000
-      });
-      response = completion.choices[0]?.message?.content || '';
-      break;
+    Generate a JSON array of file objects with this structure:
+    [
+    {
+    "id": "unique_id",
+    "name": "filename.ext",
+    "type": "file" or "folder",
+    "content": "file content as string (for files only)",
+    "language": "typescript|javascript|python|etc",
+    "children": [...] (for folders only)
     }
+    ]
 
-    case AIProvider.ANTHROPIC: {
-      const client = new Anthropic({ apiKey });
-      const message = await client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      });
-      response = message.content[0]?.type === 'text' ? message.content[0].text : '';
-      break;
-    }
+    Include essential files like package.json, README.md, and basic source files. Make the content realistic and functional.`;
 
-    case AIProvider.GOOGLE:
-    default: {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-      const result = await model.generateContent(prompt);
-      const geminiResponse = await result.response;
-      response = geminiResponse.text();
-      break;
+    let response: string;
+
+    switch (provider) {
+      case AIProvider.OPENAI: {
+        const client = new OpenAI({ apiKey });
+        const completion = await withTimeout(
+          client.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 4000
+          }),
+          60000,
+          'OpenAI API call'
+        );
+        response = completion.choices[0]?.message?.content || '';
+        break;
+      }
+
+      case AIProvider.ANTHROPIC: {
+        const client = new Anthropic({ apiKey });
+        const message = await withTimeout(
+          client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 4000,
+            messages: [{ role: 'user', content: prompt }]
+          }),
+          60000,
+          'Anthropic API call'
+        );
+        response = message.content[0]?.type === 'text' ? message.content[0].text : '';
+        break;
+      }
+
+      case AIProvider.GOOGLE:
+      default: {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+        const result = await withTimeout(
+          model.generateContent(prompt),
+          60000,
+          'Google Gemini API call'
+        );
+        const geminiResponse = await result.response;
+        response = geminiResponse.text();
+        break;
+      }
     }
-  }
 
     try {
       const parsed = JSON.parse(response);
       endMetric(true);
       return parsed;
-    } catch {
+    } catch (parseError) {
+      console.warn('[generateFileTree] JSON parsing failed, using fallback:', parseError);
       endMetric(false);
       // Fallback to mock data
       return [
@@ -441,7 +495,7 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
     }
   } catch (error) {
     endMetric(false);
-    console.error('File tree generation failed:', error);
+    console.error('[generateFileTree] File tree generation failed:', error);
     
     // Check if it's a quota/rate limit error
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -450,6 +504,22 @@ export const generateFileTree = async (config: RepoConfig, rawInput: string): Pr
       throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
     }
     
+    if (errorMessage.includes('timed out')) {
+      console.warn('⚠️ AI API call timed out. Using fallback file tree.');
+      throw new Error('AI service timeout. Please check your network connection or try again.');
+    }
+
+    if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('API key')) {
+      console.warn('⚠️ Invalid API key. Using fallback file tree.');
+      throw new Error('Invalid API key. Please check your AI provider API key in settings.');
+    }
+
+    if (errorMessage.includes('404')) {
+      console.warn('⚠️ Model not found. Using fallback file tree.');
+      throw new Error('AI model not found. Please check the selected model configuration.');
+    }
+
+    console.warn('[generateFileTree] Unknown error, returning empty file tree');
     return [];
   }
 };
@@ -460,6 +530,7 @@ export const refactorCode = async (code: string, instruction: string, filename: 
   const apiKey = getProviderApiKey(provider);
 
   if (!apiKey) {
+    console.log('[refactorCode] No API key configured, returning original code');
     // Return original code if no API key
     return code;
   }
@@ -479,22 +550,30 @@ Return only the refactored code, no explanations or markdown.`;
     switch (provider) {
       case AIProvider.OPENAI: {
         const client = new OpenAI({ apiKey });
-        const completion = await client.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 4000
-        });
+        const completion = await withTimeout(
+          client.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 4000
+          }),
+          60000,
+          'OpenAI API call'
+        );
         response = completion.choices[0]?.message?.content || code;
         break;
       }
 
       case AIProvider.ANTHROPIC: {
         const client = new Anthropic({ apiKey });
-        const message = await client.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }]
-        });
+        const message = await withTimeout(
+          client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 4000,
+            messages: [{ role: 'user', content: prompt }]
+          }),
+          60000,
+          'Anthropic API call'
+        );
         response = message.content[0]?.type === 'text' ? message.content[0].text : code;
         break;
       }
@@ -503,7 +582,11 @@ Return only the refactored code, no explanations or markdown.`;
       default: {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-        const result = await model.generateContent(prompt);
+        const result = await withTimeout(
+          model.generateContent(prompt),
+          60000,
+          'Google Gemini API call'
+        );
         const geminiResponse = await result.response;
         response = geminiResponse.text();
         break;
@@ -514,7 +597,7 @@ Return only the refactored code, no explanations or markdown.`;
     return response.trim();
   } catch (error) {
     endMetric(false);
-    console.error('Code refactoring failed:', error);
+    console.error('[refactorCode] Code refactoring failed:', error);
     
     // Check if it's a quota/rate limit error
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -523,6 +606,22 @@ Return only the refactored code, no explanations or markdown.`;
       throw new Error('AI quota exceeded. Please try again later or switch to a different AI provider with available quota.');
     }
     
+    if (errorMessage.includes('timed out')) {
+      console.warn('⚠️ AI API call timed out. Returning original code.');
+      throw new Error('AI service timeout. Please check your network connection or try again.');
+    }
+
+    if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('API key')) {
+      console.warn('⚠️ Invalid API key. Returning original code.');
+      throw new Error('Invalid API key. Please check your AI provider API key in settings.');
+    }
+
+    if (errorMessage.includes('404')) {
+      console.warn('⚠️ Model not found. Returning original code.');
+      throw new Error('AI model not found. Please check the selected model configuration.');
+    }
+
+    console.warn('[refactorCode] Unknown error, returning original code');
     return code;
   }
 };
